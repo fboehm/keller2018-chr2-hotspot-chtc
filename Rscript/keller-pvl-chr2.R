@@ -14,6 +14,9 @@ print(proc_num)
 hot_indic <- proc_num + 1 # define hot_indic 
 run_num <- as.numeric(args$run_num)
 print(run_num)
+(nsnp <- as.numeric(args$nsnp))
+(s1 <- as.numeric(args$s1))
+
 ###############
 
 
@@ -58,11 +61,11 @@ s_out <- scan_pvl(probs = gg2,
          pheno = pheno,
          kinship = kk2,
          covariates = cc2[, -5], # need to remove column 5 because we have no mice from wave 5
-         start_snp1 = 100,
-         n_snp = 5
+         start_snp1 = s1,
+         n_snp = nsnp
            )
 
 colnames(pheno)
 fn_out <- paste0("pvl-run", run_num, "_", proc_num, "_", paste(phenames, collapse = "_"), ".txt")
-write.table(scan_out, fn_out, quote = FALSE)
+write.table(s_out, fn_out, quote = FALSE)
 q("no")
