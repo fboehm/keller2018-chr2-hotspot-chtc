@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # untar your R installation
-tar -xzf R.tar.gz
+tar -xzf R-2018-09-22.tar.gz
 tar -xzf SLIBS.tar.gz
 # make sure the script will use your R installation
 export PATH=$(pwd)/R/bin:$PATH
