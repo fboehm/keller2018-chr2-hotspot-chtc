@@ -50,7 +50,7 @@ sum(rownames(pheno) == rownames(gg2))
 sum(rownames(pheno) == rownames(kk2))
 sum(rownames(pheno) == colnames(kk2))
 sum(rownames(pheno) == rownames(cc2))
-
+phenames <- c(hnf4a_id, colnames(hotspot)[hot_indic])
 # two-dimensional scan
 
 library(qtl2pleio)
@@ -62,6 +62,7 @@ s_out <- scan_pvl(probs = gg2,
          n_snp = 5
            )
 
+colnames(pheno)
 fn_out <- paste0("pvl-run", run_num, "_", proc_num, "_", paste(phenames, collapse = "_"), ".txt")
 write.table(scan_out, fn_out, quote = FALSE)
 q("no")
