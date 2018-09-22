@@ -22,7 +22,7 @@ readRDS("data/hotspot_expr_tib2_keller_chr2.rds") -> hotspot
 readRDS("data/keller2018-chr2-local-expr.rds") -> local
 
 # load chr2 allele probabilities
-readRDS("data/genoprobs_chr2.rds") -> geno
+readRDS("genoprobs_chr2.rds") -> geno # genoprobs_chr2.rds is on SQUID
 
 # load kinship matrix (LOCO, ie, for chromosome 2, ie, doesn't use chr2 data)
 readRDS("data/kinship_chr2.rds") -> kinship
