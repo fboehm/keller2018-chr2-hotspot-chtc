@@ -11,7 +11,8 @@ print(args)
 print(args$argname)
 proc_num <- as.numeric(args$argname)
 print(proc_num)
-hot_indic <- proc_num + 1 # define hot_indic 
+(hot_indic <- proc_num %% 139 + 1) # define hot_indic 
+(local_indic <- proc_num %/% 139 + 1) # define local_indic
 run_num <- as.numeric(args$run_num)
 print(run_num)
 (nsnp <- as.numeric(args$nsnp))
@@ -46,23 +47,25 @@ cc2 <- covar[rownames(covar) %in% id2keep, ]
 
 # create matrix of two expression traits
 hnf4a_id <- "ENSMUSG00000017950"
-pheno <- cbind(local[ , colnames(local) == hnf4a_id], hotspot[ , hot_indic])
+local2 <- local[ , !colnames(local) == hnf4a_id]
+pheno <- cbind(local2[ , local_indic, drop = FALSE], hotspot[ , hot_indic, drop = FALSE])
 rownames(pheno) <- local$mouse_id
 # verify that names match in all objects
 sum(rownames(pheno) == rownames(gg2))
 sum(rownames(pheno) == rownames(kk2))
 sum(rownames(pheno) == colnames(kk2))
 sum(rownames(pheno) == rownames(cc2))
-phenames <- c(hnf4a_id, colnames(hotspot)[hot_indic])
+phenames <- c(colnames(local2)[local_indic], colnames(hotspot)[hot_indic])
 # two-dimensional scan
 
 library(qtl2pleio)
 s_out <- scan_pvl(probs = gg2,
          pheno = pheno,
          kinship = kk2,
-         covariates = cc2[, -5], # need to remove column 5 because we have no mice from wave 5
+         covariates = cc2[ , -5], # need to remove column 5 because we have no mice from wave 5
          start_snp1 = s1,
-         n_snp = nsnp
+         #n_snp = nsnp
+         n_snp = 5
            )
 
 colnames(pheno)
