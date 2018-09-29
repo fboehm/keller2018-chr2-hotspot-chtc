@@ -24,6 +24,9 @@ lrts %>%
   arrange(desc(lrt))
 ```
 
+```{r}
+hist(lrts$lrt)
+```
 
 
 
