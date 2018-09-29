@@ -1,0 +1,29 @@
+---
+title: 'Hnf4a analysis: 139 nonlocal traits in chromosome 2 hotspot'
+author: "Frederick Boehm"
+date: "9/26/2018"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(qtl2pleio)
+library(qtl2chtc)
+library(tidyverse)
+```
+
+```{r}
+calc_lrt_dir("../results/pvl-run2001") -> lrts
+```
+
+```{r}
+lrts %>%
+  arrange(desc(lrt))
+```
+
+
+
+
