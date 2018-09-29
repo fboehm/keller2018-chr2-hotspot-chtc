@@ -314,10 +314,10 @@ covar <- dataset.islet.rnaseq$covar
 ```{r hotspot_pc1_qtl_plots}
 for(i in 1:ncol(qtl1)) {
   chr = colnames(qtl1)[i]
-  pdf(paste0(fig.dir, "hotspot_pc1_qtl_chr", chr, ".pdf"), width = 10, height = 8)
+#  pdf(paste0(fig.dir, "hotspot_pc1_qtl_chr", chr, ".pdf"), width = 10, height = 8)
   plot_scan1(x = qtl1, map = map, lodcolumn = i, main = paste("Chr", chr, "Hotspot PC 1"))
   abline(h = 7.2, col = 2, lwd = 2)
-  dev.off()
+#  dev.off()
   plot_scan1(x = qtl1, map = map, lodcolumn = i, main = paste("Chr", chr, "Hotspot PC 1"))
   abline(h = 7.2, col = 2, lwd = 2)
 }
@@ -328,17 +328,17 @@ for(i in 1:ncol(qtl1)) {
 ```{r hotspot_pc1_effect_plots}
 for(i in 1:ncol(qtl1)) {
   chr = colnames(qtl1)[i]
-  blup.filename = paste0(result.dir, "hotspot_pc1_blup_chr", chr, ".rds")
-  blup = NULL
-  if(file.exists(blup.filename)) {
-    blup = readRDS(blup.filename)
-  } else {
+#  blup.filename = paste0(result.dir, "hotspot_pc1_blup_chr", chr, ".rds")
+#  blup = NULL
+ # if(file.exists(blup.filename)) {
+#    blup = readRDS(blup.filename)
+# # } else {
     blup = scan1blup(genoprobs = genoprobs[,chr], pheno = hotspot.pc1[,i,drop = FALSE], kinship = K[[chr]], addcovar = covar, cores = 4)
-    saveRDS(blup, file = blup.filename)
-  }
-  pdf(paste0(fig.dir, "hotspot_PC1_blup_chr", chr, ".pdf"), width = 10, height = 8)
+#    saveRDS(blup, file = blup.filename)
+#  }
+#  pdf(paste0(fig.dir, "hotspot_PC1_blup_chr", chr, ".pdf"), width = 10, height = 8)
   plot_coefCC(blup, map = map, scan1_output = qtl1[,i,drop=FALSE], main = paste("Chr", chr, "Hotspot PC 1"))
-  dev.off()
+#  dev.off()
   plot_coefCC(blup, map = map, scan1_output = qtl1[,i,drop=FALSE], main = paste("Chr", chr, "Hotspot PC 1"))
 }
 ```
@@ -347,10 +347,10 @@ for(i in 1:ncol(qtl1)) {
 
 ```{r hotspot_pc2_qtl_plots}
 for(i in 1:ncol(qtl2)) {
-  pdf(paste0(fig.dir, "hotspot_pc2_qtl_chr", chr, ".pdf"), width = 10, height = 8)
+#  pdf(paste0(fig.dir, "hotspot_pc2_qtl_chr", chr, ".pdf"), width = 10, height = 8)
   plot_scan1(x = qtl2, map = map, lodcolumn = i, main = paste("Chr", colnames(qtl2)[i], "Hotspot PC 2"))
   abline(h = 7.2, col = 2, lwd = 2)
-  dev.off()
+#  dev.off()
   plot_scan1(x = qtl2, map = map, lodcolumn = i, main = paste("Chr", colnames(qtl2)[i], "Hotspot PC 2"))
   abline(h = 7.2, col = 2, lwd = 2)
 }
@@ -361,17 +361,17 @@ for(i in 1:ncol(qtl2)) {
 ```{r hotspot_pc2_effect_plots}
 for(i in 1:ncol(qtl2)) {
   chr = colnames(qtl2)[i]
-  blup.filename = paste0(result.dir, "hotspot_pc2_blup_chr", chr, ".rds")
-  blup = NULL
-  if(file.exists(blup.filename)) {
-    blup = readRDS(blup.filename)
-  } else {
+  #blup.filename = paste0(result.dir, "hotspot_pc2_blup_chr", chr, ".rds")
+  #blup = NULL
+  #if(file.exists(blup.filename)) {
+  #  blup = readRDS(blup.filename)
+  #} else {
     blup = scan1blup(genoprobs = genoprobs[,chr], pheno = hotspot.pc2[,i,drop = FALSE], kinship = K[[chr]], addcovar = covar, cores = 4)
-    saveRDS(blup, file = blup.filename)
-  }
-  pdf(paste0(fig.dir, "hotspot_pc2_blup_chr", chr, ".pdf"), width = 10, height = 8)
+ #   saveRDS(blup, file = blup.filename)
+  #}
+#  pdf(paste0(fig.dir, "hotspot_pc2_blup_chr", chr, ".pdf"), width = 10, height = 8)
   plot_coefCC(blup, map = map, scan1_output = qtl2[,i,drop=FALSE], main = paste("Chr", colnames(qtl2)[i], "Hotspot PC 2"))
-  dev.off()
+#  dev.off()
   plot_coefCC(blup, map = map, scan1_output = qtl2[,i,drop=FALSE], main = paste("Chr", colnames(qtl2)[i], "Hotspot PC 2"))
 }
 ```
@@ -399,13 +399,13 @@ kable(tmp %>%
 
 ```{r pc1_qtl_peaks}
 pc1_peaks = find_peaks(scan1_output = qtl1, map = map, threshold = 10, prob = 0.95)
-write_csv(pc1_peaks, path = paste0(result.dir, "eQTL_hotspot_PC1_QTL_peaks.csv"))
+#write_csv(pc1_peaks, path = paste0(result.dir, "eQTL_hotspot_PC1_QTL_peaks.csv"))
 kable(pc1_peaks)
 ```
 
 ```{r pc2_qtl_peaks}
 pc2_peaks = find_peaks(scan1_output = qtl2, map = map, threshold = 7.2, prob = 0.95)
-write_csv(pc2_peaks, path = paste0(result.dir, "eQTL_hotspot_PC2_QTL_peaks.csv"))
+#write_csv(pc2_peaks, path = paste0(result.dir, "eQTL_hotspot_PC2_QTL_peaks.csv"))
 kable(pc2_peaks)
 ```
 
@@ -580,7 +580,7 @@ for(i in seq_along(mediators)) {
 candidate.mediators = c("Hnf4a", "Pdx1", "Fam83e", "Sat2", "Il6st")
 hotspots = data.frame(hotspots, symbol = candidate.mediators, stringsAsFactors = FALSE)
 hotspots = left_join(hotspots, num.genes, by = "symbol")
-write_csv(hotspots, path = paste0(result.dir, "hotspot_genes.csv"))
+#write_csv(hotspots, path = paste0(result.dir, "hotspot_genes.csv"))
 kable(hotspots)
 ```
 
@@ -596,25 +596,25 @@ for(i in seq_along(mediators)) {
     symbol = mediators[[i]]$symbol[j]
     chr = mediators[[i]]$chr[j]
     expr = expr.mrna[,ens.id, drop = FALSE]
-    qtl.outfile  = paste0(result.dir, symbol, "_qtl.rds")
-    blup.outfile = paste0(result.dir, symbol, "_chr", chr, "_blup.rds")
-    qtl  = NULL
-    blup = NULL
-    if(file.exists(blup.outfile)) {
-      qtl  = readRDS(qtl.outfile)
-      blup = readRDS(blup.outfile)
-    } else {
+#    qtl.outfile  = paste0(result.dir, symbol, "_qtl.rds")
+#    blup.outfile = paste0(result.dir, symbol, "_chr", chr, "_blup.rds")
+#    qtl  = NULL
+#    blup = NULL
+#    if(file.exists(blup.outfile)) {
+#      qtl  = readRDS(qtl.outfile)
+#      blup = readRDS(blup.outfile)
+#    } else {
       qtl = scan1(genoprobs = genoprobs, pheno = expr, kinship = K, addcovar = covar, cores = 2)
-      saveRDS(qtl, file = qtl.outfile)
+#      saveRDS(qtl, file = qtl.outfile)
       blup = scan1blup(genoprobs = genoprobs[,chr], pheno = expr, kinship = K[[chr]], addcovar = covar, cores = 4)
-      saveRDS(blup, file = blup.outfile)
-    }
-    pdf(paste0(fig.dir, symbol, "_chr", chr, "_qtl.pdf"), width = 10, height = 8)
+#      saveRDS(blup, file = blup.outfile)
+#    }
+#    pdf(paste0(fig.dir, symbol, "_chr", chr, "_qtl.pdf"), width = 10, height = 8)
     plot_scan1(x = qtl, map = map, main = symbol)
-    dev.off()
-    pdf(paste0(fig.dir, symbol, "_chr", chr, "_blup.pdf"), width = 10, height = 8)
+#    dev.off()
+#    pdf(paste0(fig.dir, symbol, "_chr", chr, "_blup.pdf"), width = 10, height = 8)
     plot_coefCC(x = blup, map = map, scan1_output = qtl, main = paste(symbol, "Chr", chr))
-    dev.off()
+#    dev.off()
     plot_coefCC(x = blup, map = map, scan1_output = qtl, main = paste(symbol, "Chr", chr))
   }
 }
@@ -798,15 +798,15 @@ for(i in 1:nrow(hotspot.peaks)) {
                  geom_vline(aes(xintercept = med_lod), color = "red") +
                  labs(title = paste("Hotspot Genes: Chr", curr.chr, ":", symbol))
     num.genes$num_cond4[rownames(num.genes) == symbol[1,1]] = sum(df$cond4_lod < 7)
-    pdf(paste0(fig.dir, "chr", curr.chr, "_", symbol, "_mediation_cond4.pdf"), width = 8, height = 8)
-    print(out.plot)
-    dev.off()
+#    pdf(paste0(fig.dir, "chr", curr.chr, "_", symbol, "_mediation_cond4.pdf"), width = 8, height = 8)
+#    print(out.plot)
+#    dev.off()
     print(out.plot)
   }
 }
 ```
 
 ```{r}
-write_csv(num.genes, path = paste0(result.dir, "mediation_cond4_num_genes.csv"))
+#write_csv(num.genes, path = paste0(result.dir, "mediation_cond4_num_genes.csv"))
 ```
 
