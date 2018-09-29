@@ -1,0 +1,25 @@
+---
+title: "Identify chtc jobs that didn't complete"
+author: "Frederick Boehm"
+date: "9/29/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Goals
+
+I want to identify the process ids for the jobs that didn't return a text file with scan_pvl results from run 2002.
+
+I have transferred to my macbook the text files that chtc returned. They are in the directory "results/pvl-run2002".
+
+```{r}
+library(qtl2chtc)
+```
+
+```{r}
+find_missing_jobs(DIR = "../results/pvl-run2002", njobs = 2780, outfile = "../results/bad-jobs-pvl-run2002")
+```
+
