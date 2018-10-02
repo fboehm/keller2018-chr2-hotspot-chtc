@@ -1,0 +1,145 @@
+---
+title: "Using R package `byandell/intermediate`"
+author: "Frederick Boehm"
+date: "10/1/2018"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(intermediate)
+library(tidyverse)
+```
+
+First, we load the Keller 2018 data.
+
+```{r}
+load("../data-to-ignore/Attie_DO378_eQTL_viewer_v1.Rdata")
+readRDS("../data/hotspot_expr_tib2_keller_chr2.rds") -> hotspot_expr
+readRDS("../data/keller2018-chr2-local-expr.rds") -> local_expr
+```
+
+We get the annotation information on the genes that map to chromosome 2's hotspot.
+
+```{r}
+dataset.islet.rnaseq$annots %>%
+  filter(hotspot == "chr2")
+```
+
+
+
+
+We see in Brian's file, shared by email, "Recla.Rmd", the lines:
+
+```{r, eval = FALSE}
+med_scan <- mediation_scan(target = target,
+                      mediator = mediators[, med_signif],
+                      driver = driver,
+                      annotation = annotation,
+                      covar = covar,
+                      method = "double-lod-diff")
+```
+
+We note that, earlier in his file, Brian defined `med_signif` after looking at each univariate putative mediator with the function `mediator_lod`.
+
+
+
+
+Let's try to do a mediation scan with a single target, a single driver, and a single mediator. Here, we'll use the Hnf4a gene expression levels as mediator. We'll choose the first nonlocal hotspot gene as the target. We'll choose the founder allele probabilities for the peak position of Hnf4a gene expression as the driver.
+
+```{r}
+# what is the ENSEMBL id for Hnf4a?
+hnf4a_id <- "ENSMUSG00000017950"
+# define mediator - a numeric vector with mouse ids as names
+med <- local_expr %>%
+  select(hnf4a_id)
+rownames(med) <- local_expr$mouse_id
+# define target - a numeric vector with names (mouse ids)
+tar_id <- "ENSMUSG00000000544"
+tar <- hotspot_expr %>%
+  select(tar_id) %>%
+  unlist()
+names(tar) <- hotspot_expr$mouse_id
+```
+
+We still need to define the driver for input to `intermediate::mediation_scan`.
+
+```{r}
+# define driver
+## to define driver, we need to find the peak position for Hnf4a gene expression levels
+library(qtl2)
+# convert to needed phenotypes input format for scan1
+as.matrix(local_expr[, 1:21]) -> local_expr_mat
+rownames(local_expr_mat) <- local_expr[, 22] %>% unlist() %>% as.character()
+#
+as.matrix(hotspot_expr[, 1:139]) -> hotspot_expr_mat
+rownames(hotspot_expr_mat) <- hotspot_expr[, 140] %>% unlist() %>% as.character()
+#
+# isolate additive covariates
+dataset.islet.rnaseq$covar -> addcovar
+```
+
+
+
+```{r, cache = TRUE}
+scan1(genoprobs = genoprobs, pheno = local_expr_mat, kinship = K, addcovar = addcovar, reml = TRUE
+        ) -> s1_local
+scan1(genoprobs = genoprobs, pheno = hotspot_expr_mat, kinship = K, addcovar = addcovar, reml = TRUE
+        ) -> s1_hotspot
+
+```
+
+We now search the outputs of `scan1` to identify peaks:
+
+```{r}
+find_peaks(s1_local, map = map, threshold = 20) -> local_peaks
+find_peaks(s1_hotspot, map = map) -> hotspot_peaks
+```
+
+```{r}
+map_chr2_tib <- tibble(pos = map$`2`, index = 1:length(map$`2`))
+hnf4a_peak_position <- local_peaks %>%
+  filter(lodcolumn == hnf4a_id) %>% 
+  left_join(map_chr2_tib, by = "pos") %>%
+  select(index) %>% 
+  unlist() %>%
+  as.numeric()
+
+```
+
+
+
+```{r}
+dri <- genoprobs[[2]][ , , hnf4a_peak_position] 
+# We take the second item in the genoprobs list because the peaks are on chromosome TWO
+```
+
+We also need to define an annotation dataframe.
+
+```{r}
+ann <- dataset.islet.rnaseq$annots %>%
+  filter(gene_id == hnf4a_id) %>% 
+  rename(pos = middle, id = gene_id)
+```
+
+Let's subset the driver and the covariates:
+
+```{r}
+addcovar2 <- addcovar[rownames(addcovar) %in% names(tar), ]
+dri2 <- dri[rownames(dri) %in% names(tar), ]
+```
+
+
+
+
+```{r}
+med_scan <- mediation_scan(target = tar,
+                      mediator = med,
+                      driver = dri2,
+                      annotation = ann,
+                      covar = addcovar2,
+                      method = "double-lod-diff")
+
+```
+
+

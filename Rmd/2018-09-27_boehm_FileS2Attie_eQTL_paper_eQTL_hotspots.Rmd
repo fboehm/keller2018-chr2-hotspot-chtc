@@ -323,77 +323,6 @@ for(i in 1:ncol(qtl1)) {
 }
 ```
 
-### Hotspot PC1 Effect Plots
-
-```{r hotspot_pc1_effect_plots}
-for(i in 1:ncol(qtl1)) {
-  chr = colnames(qtl1)[i]
-#  blup.filename = paste0(result.dir, "hotspot_pc1_blup_chr", chr, ".rds")
-#  blup = NULL
- # if(file.exists(blup.filename)) {
-#    blup = readRDS(blup.filename)
-# # } else {
-    blup = scan1blup(genoprobs = genoprobs[,chr], pheno = hotspot.pc1[,i,drop = FALSE], kinship = K[[chr]], addcovar = covar, cores = 4)
-#    saveRDS(blup, file = blup.filename)
-#  }
-#  pdf(paste0(fig.dir, "hotspot_PC1_blup_chr", chr, ".pdf"), width = 10, height = 8)
-  plot_coefCC(blup, map = map, scan1_output = qtl1[,i,drop=FALSE], main = paste("Chr", chr, "Hotspot PC 1"))
-#  dev.off()
-  plot_coefCC(blup, map = map, scan1_output = qtl1[,i,drop=FALSE], main = paste("Chr", chr, "Hotspot PC 1"))
-}
-```
-
-### Hotspot PC2 QTL Plots
-
-```{r hotspot_pc2_qtl_plots}
-for(i in 1:ncol(qtl2)) {
-#  pdf(paste0(fig.dir, "hotspot_pc2_qtl_chr", chr, ".pdf"), width = 10, height = 8)
-  plot_scan1(x = qtl2, map = map, lodcolumn = i, main = paste("Chr", colnames(qtl2)[i], "Hotspot PC 2"))
-  abline(h = 7.2, col = 2, lwd = 2)
-#  dev.off()
-  plot_scan1(x = qtl2, map = map, lodcolumn = i, main = paste("Chr", colnames(qtl2)[i], "Hotspot PC 2"))
-  abline(h = 7.2, col = 2, lwd = 2)
-}
-```
-
-### Hotspot PC2 Effect Plots
-
-```{r hotspot_pc2_effect_plots}
-for(i in 1:ncol(qtl2)) {
-  chr = colnames(qtl2)[i]
-  #blup.filename = paste0(result.dir, "hotspot_pc2_blup_chr", chr, ".rds")
-  #blup = NULL
-  #if(file.exists(blup.filename)) {
-  #  blup = readRDS(blup.filename)
-  #} else {
-    blup = scan1blup(genoprobs = genoprobs[,chr], pheno = hotspot.pc2[,i,drop = FALSE], kinship = K[[chr]], addcovar = covar, cores = 4)
- #   saveRDS(blup, file = blup.filename)
-  #}
-#  pdf(paste0(fig.dir, "hotspot_pc2_blup_chr", chr, ".pdf"), width = 10, height = 8)
-  plot_coefCC(blup, map = map, scan1_output = qtl2[,i,drop=FALSE], main = paste("Chr", colnames(qtl2)[i], "Hotspot PC 2"))
-#  dev.off()
-  plot_coefCC(blup, map = map, scan1_output = qtl2[,i,drop=FALSE], main = paste("Chr", colnames(qtl2)[i], "Hotspot PC 2"))
-}
-```
-
-### Hotspot PC1 Sex Effects.
-
-```{r hotspot_pc1_sex_effects,warning=FALSE,message=FALSE}
-if(all(substring(colnames(hotspot.pc1), 1, 1) != "c")) {
-  colnames(hotspot.pc1) = paste0("chr", colnames(hotspot.pc1))
-}
-sex_fxn = function(df) { lm(value ~ sex + DOwave, data = df)}
-tmp = data.frame(mouse = rownames(hotspot.pc1), hotspot.pc1) %>%
-        left_join(y = select(pheno_clin, mouse, sex, DOwave), by = "mouse") %>%
-        gather(chr, value, -mouse, -sex, -DOwave) %>%
-        group_by(chr) %>%
-        nest() %>%
-        mutate(mod = map(.$data, sex_fxn))
-kable(tmp %>% 
-        mutate(summary = mod %>% map(tidy)) %>%
-        unnest(summary) %>%
-        filter(term == "sexM"))
-```
 
 ### Hotspot QTL Peaks for PC! & PC2
 
@@ -448,23 +377,21 @@ names(mediators) = hotspot.peaks$chr
                      mutate(mouse = rownames(dataset.clinical.phenotypes$covar)), 
                    by = "mouse") %>% 
          #select(mouse, sex, DOwave, pc1, B:H) %>%
-        select(mouse, sexM, DOwave2, DOwave3, DOwave4, pc1, B:H) %>%
+        select(mouse, sexM, DOwave2, DOwave3, pc1, B:H) %>%
         left_join(y = dataset.islet.rnaseq$expr %>%
                     as_tibble() %>%
                     mutate(mouse = rownames(dataset.islet.rnaseq$expr)), 
                   by = "mouse") %>%
          #gather(ensembl, expr, -mouse, -sex, -pc1, -DOwave, -(B:H)) %>%
-         gather(annot.id, dataset.islet.rnaseq$expr %>%
-                    as_tibble() %>%
-                    mutate(mouse = rownames(dataset.islet.rnaseq$expr)), 
-                -mouse, -sexM, -pc1, 
-                -DOwave2, - DOwave3, - DOwave4, -(B:H)) %>%
+         #gather(annot.id, dataset.islet.rnaseq$expr %>%
+        #            as_tibble() %>%
+        #            mutate(mouse = rownames(dataset.islet.rnaseq$expr)), 
+        #        -mouse, -sexM, -pc1, 
+        #        -DOwave2, - DOwave3, - DOwave4, -(B:H)) %>%
       #select(mouse, pc1, sex, DOwave, expr, B:H, ensembl) %>%
        select(mouse, pc1, sexM, 
-              DOwave2, DOwave3, DOwave4, 
-              dataset.islet.rnaseq$expr %>%
-                    as_tibble() %>%
-                    mutate(mouse = rownames(dataset.islet.rnaseq$expr)), B:H, annot.id) %>%
+              DOwave2, DOwave3, 
+              B:H, annot.id) %>%
         #group_by(ensembl) %>%
       group_by(annot.id) %>%   
       nest()
@@ -494,7 +421,7 @@ names(mediators) = hotspot.peaks$chr
     print(out.plot)
     gc()
   }
-  saveRDS(mediators, file = mediator.file)
+  #saveRDS(mediators, file = mediator.file)
 
 ```
 
