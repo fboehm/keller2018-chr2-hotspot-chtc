@@ -70,10 +70,10 @@ We still need to define the driver for input to `intermediate::mediation_scan`.
 library(qtl2)
 # convert to needed phenotypes input format for scan1
 as.matrix(local_expr[, 1:21]) -> local_expr_mat
-rownames(local_expr_mat) <- local_expr[, 22] %>% unlist() %>% as.character()
+rownames(local_expr_mat) <- local_expr$mouse_id %>% unlist() %>% as.character()
 #
 as.matrix(hotspot_expr[, 1:139]) -> hotspot_expr_mat
-rownames(hotspot_expr_mat) <- hotspot_expr[, 140] %>% unlist() %>% as.character()
+rownames(hotspot_expr_mat) <- hotspot_expr$mouse_id %>% unlist() %>% as.character()
 #
 # isolate additive covariates
 dataset.islet.rnaseq$covar -> addcovar
@@ -81,13 +81,23 @@ dataset.islet.rnaseq$covar -> addcovar
 
 
 
-```{r, cache = TRUE}
+```{r, cache = FALSE}
 scan1(genoprobs = genoprobs, pheno = local_expr_mat, kinship = K, addcovar = addcovar, reml = TRUE
         ) -> s1_local
 scan1(genoprobs = genoprobs, pheno = hotspot_expr_mat, kinship = K, addcovar = addcovar, reml = TRUE
         ) -> s1_hotspot
 
 ```
+
+
+We save the scan1 outputs, because they take some time to re-run.
+
+```{r}
+saveRDS(s1_local, "s1_local.rds")
+saveRDS(s1_hotspot, "s1_hotspot.rds")
+```
+
+
 
 We now search the outputs of `scan1` to identify peaks:
 
@@ -141,5 +151,108 @@ med_scan <- mediation_scan(target = tar,
                       method = "double-lod-diff")
 
 ```
+
+
+```{r}
+mtest_out <- mediation_test(target = tar,
+                      mediator = med,
+                      driver = dri2, annotation = ann, 
+               covar_tar = addcovar2, 
+               covar_med = addcovar2
+              )
+mtest_list <- apply(FUN = mediation_test, X = hotspot_expr_mat, MARGIN = 2,
+                    mediator = med, 
+                    driver = dri2, 
+                    annotation = ann,
+                    covar_tar = addcovar2,
+                    covar_med = addcovar2
+                    )
+```
+
+
+```{r}
+rna_annot <- dataset.islet.rnaseq$annots %>%
+  as_tibble() %>%
+  select(gene_id, symbol)
+  
+bests <- lapply(FUN = function(x)x$best, X = mtest_list) %>% 
+  bind_rows() %>%
+  rename(local_id = id, local_symbol = symbol, local_chr = chr, local_pos = pos) %>%
+  mutate(nonlocal_id = colnames(hotspot_expr_mat)) %>%
+  select(21, 1:20) %>%
+  left_join(rna_annot, by = c("nonlocal_id" = "gene_id")) %>%
+  rename(nonlocal_symbol = symbol) %>%
+  select(1, 22, 2:21)
+```
+
+Brian, in an email, suggested looking at the columns "triad" and "pvalue".
+
+
+```{r}
+bests$triad %>% table()
+```
+
+
+```{r}
+bests$pvalue %>% log10() %>% hist()
+```
+
+## Matrix of mediators
+
+Above, we considered only one possile mediator, *Hnf4a* gene expression levels.
+
+I'm now uncertain about some arguments to `mediation_test` - what is the difference between `driver_med` and `driver`?
+
+We also see that, in Brian's file "Recla.Rmd", he uses `mediator_lod`. What exactly is the outputted column `lod` when using this function?
+
+We should do the analysis with `mediation_test`, but using a matrix of mediators, not just a single possible mediator.
+
+```{r}
+ann_mat <- dataset.islet.rnaseq$annots %>%
+  filter(gene_id %in% colnames(local_expr)) %>% 
+  rename(pos = middle, id = gene_id)
+```
+
+
+```{r}
+mtest_matrix_out <- mediation_test(target = tar,
+                      mediator = local_expr_mat,
+                      driver = dri2, annotation = ann_mat, 
+               covar_tar = addcovar2, 
+               covar_med = addcovar2
+              )
+
+```
+
+## Getting the LOD drops when including a mediator
+
+```{r}
+calc_lod_drop <- function(probs, # a matrix, ie, a driver
+                          pheno, # a matrix for a single phenotype or target
+                          kinship, # a matrix for the appropriate chromosome
+                          addcovar, # covariates matrix, ie, to include in both model fits
+                          putative_mediator # a second phenotype, putative intermediate
+                          ){
+  lod_no_mediator <- qtl2::fit1(genoprobs = probs, 
+                                pheno = pheno, 
+                                kinship = kinship, 
+                                addcovar = addcovar)$lod
+  lod_mediator <- qtl2::fit1(genoprobs = probs, 
+                                pheno = pheno, 
+                                kinship = kinship, 
+                                addcovar = cbind(addcovar, putative_mediator))$lod
+  return(lod_no_mediator - lod_mediator)
+}
+```
+
+```{r}
+calc_lod_drop(probs = dri2, 
+              pheno = as.matrix(tar),
+              kinship = NULL,
+              addcovar = NULL, 
+              putative_mediator = as.matrix(med))
+```
+
+
 
 

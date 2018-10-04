@@ -1,0 +1,122 @@
+
+#### mRNA expression experiment
+
+Recla et al. (201x) studied a multi-parent population of mice. That is, the experimental setting is a controlled genetic cross of 8 founders, leading after many generations to a population known as the Diversity Outbred Mice (Gatti et al. 2013). The driver is genotype at a particular genetic locus, in this case at the location of the target, the mRNA expression of gene `Tmem68`. The goal here is to identify potential mediators (mRNA expression from other genes) that affect this target. Genetic studies use LOD = LR / log(10) for comparison.
+
+```{r}
+data(Tmem68)
+```
+
+```{r}
+# target and Tmem68$mediator[,"Tmem68"] are identical.
+# so add some noise to make more interesting.
+target <- Tmem68$target
+#target <- target + rnorm(length(target), sd = 0.5)
+```
+
+```{r}
+covar <- Tmem68$covar
+m <- match("Tmem68", Tmem68$annotation$symbol)
+annot_tar <- Tmem68$annotation[m,, drop = FALSE]
+```
+
+```{r}
+#Reconstruct 8-allele genotype probabilities.
+driver <- cbind(A = 1 - apply(Tmem68$qtl.geno, 1, sum), Tmem68$qtl.geno)
+rownames(driver) <- rownames(Tmem68$qtl.geno)
+```
+
+```{r}
+annotation <- Tmem68$annotation %>%
+  mutate(chr = factor(chr, c(1:19,"X")))
+mediators <- Tmem68$mediator
+```
+
+```{r med_lod}
+if(!file.exists(tmp <- "med_lod.rds")) {
+  med_lod <- 
+    mediator_lod(mediator = mediators,
+                 driver = driver,
+                 annotation = annotation,
+                 covar_med = covar) %>%
+    mutate(info = paste("chr =", chr)) %>%
+    filter(lod >= 5)
+  saveRDS(med_lod, file = tmp)
+} else {
+  med_lod <- readRDS(tmp)
+}
+med_signif <- med_lod$id
+```
+
+```{r med_scan}
+med_scan <- mediation_scan(target = target,
+                      mediator = mediators[, med_signif],
+                      driver = driver,
+                      annotation = annotation,
+                      covar = covar,
+                      method = "double-lod-diff")
+```
+
+First the set of all mediators is refined to those that have significant LOD at the driver. Here, significance is achieved with LOD above an empirical threshold of 5. For these potential mediators, a mediation scan is performed, plotting the LOD for the target adjusted by each mediator. The horizontal blue line is at the unadjusted LOD.
+
+```{r ggplot_med_scan}
+ggplot_mediation_scan(med_scan)
+```
+
+Mediation test
+
+Causal model selection tests.
+
+```{r med_test}
+med_test <- mediation_test(target = target,
+                      mediator = mediators[, med_signif, drop = FALSE],
+                      driver = driver,
+                      annotation = med_lod,
+                      covar_tar = covar,
+                      covar_med = covar,
+                      method = "double-lod-diff")
+(sum_med <- summary(med_test) %>%
+    arrange(pvalue))
+```
+
+```{r ggplot_med_test,fig.height=4, fig.width=7}
+autoplot(med_test)
+```
+
+```{r ggplot_med_causal}
+dat <- med_test$best
+dat$lod_tar <- med_test$params$target_LR / log(10)
+dat$lod_med <- dat$mediation / log(10)
+ggplot(dat %>% filter(pvalue <= 0.05)) +
+  aes(lod_tar - lod_med, -log10(pvalue),
+      col = triad, symbol = symbol) +
+  geom_point(alpha = 0.5, size = 2)
+```
+
+Driver effects
+
+```{r med_effect}
+med_effect <- intermediate::mediation_effect(med_test, "symbol")
+```
+
+```{r ggplot_med_effect}
+plot(med_effect)
+```
+
+Mediation triad
+
+```{r}
+m <- match("Nnt", annotation$symbol)
+mediator <- mediators[, m, drop = FALSE]
+colnames(mediator) <- "Nnt"
+```
+
+```{r med_triad}
+med_triad <- mediation_triad(target = target,
+                      mediator = mediator,
+                      driver = driver,
+                      covar_tar = covar,
+                      sdp = 2)
+autoplot(med_triad)
+```
+

@@ -1,0 +1,117 @@
+---
+title: "Analyzing pvl scan results from CHTC"
+author: "Frederick Boehm"
+date: "10/4/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Our goal is to analyze the results of pvl scan results files from CHTC.
+
+```{r}
+library(qtl2chtc)
+```
+
+```{r}
+r2001 <- calc_lrt_dir(directory = "../results/pvl-run2001")
+dir(path = "../results/pvl-run2001/", pattern = "*.txt") -> fns
+  lrt <- numeric()
+  i <- 1
+  for (fn in fns){
+    read.table(file.path("../results/pvl-run2001/", fn)) -> scan_out
+    qtl2pleio::calc_lrt_tib(scan_out) -> lrt[i]
+    i <- i + 1
+  }
+  tibble::tibble(fns, lrt) -> r2001
+```
+
+```{r}
+dir(path = "../results/pvl-run2002/", pattern = "*.txt") -> fns
+  lrt <- numeric()
+  i <- 1
+  for (fn in fns){
+    read.table(file.path("../results/pvl-run2002/", fn)) -> scan_out
+    qtl2pleio::calc_lrt_tib(scan_out) -> lrt[i]
+    i <- i + 1
+  }
+  tibble::tibble(fns, lrt) -> r2002
+```
+
+Let's parse the file names in `r2001` into meaningful fields, like gene names.
+
+```{r}
+library(stringr)
+library(tidyverse)
+```
+
+```{r}
+splitted <- r2001$fns %>% 
+  str_split(pattern = "_") 
+
+my_split <- function(string_vec, pattern = ".txt"){
+  foo <- str_split(string_vec, pattern)
+  sapply(FUN = function(x)x[1], X = foo)
+}
+res2001 <- sapply(FUN = function(x)x[1:4], X = splitted) %>% 
+  t() %>%
+  as_tibble() %>%
+  rename(run_num = V1, job_num = V2, local_gene_id = V3) %>%
+  mutate(nonlocal_gene_id = my_split(V4)) %>%
+  select(- V4) %>%
+  mutate(lrt = r2001$lrt) %>%
+  arrange(desc(lrt))
+
+  
+```
+
+
+```{r}
+res <- r2002$fns %>% 
+  str_split(pattern = "_") %>%
+  sapply(FUN = function(x)x[1:4]) %>% 
+  t() %>%
+  as_tibble() %>%
+  rename(run_num = V1, job_num = V2, local_gene_id = V3) %>%
+  mutate(nonlocal_gene_id = my_split(V4)) %>%
+  select(- V4) %>%
+  mutate(lrt = r2002$lrt) %>%
+  arrange(desc(lrt)) %>% 
+  bind_rows(res2001)
+
+```
+
+```{r}
+hist(res$lrt)
+```
+
+
+## Organize `res$lrt` for heatmap creation
+
+```{r}
+res_ord <- res %>%
+  arrange(local_gene_id, nonlocal_gene_id)
+res_ord
+# notice that the local_gene_id is repeated once for each nonlocal gene
+# ie, 139 consecutive times in res_ord
+```
+
+
+```{r}
+lrt_mat <- matrix(nrow = 139, ncol = 21, data = res_ord$lrt)
+rownames(lrt_mat) <- res_ord$nonlocal_gene_id[1:139]
+colnames(lrt_mat) <- unique(res_ord$local_gene_id)
+```
+
+## Make a heatmap for lrt values
+
+```{r}
+library(d3heatmap)
+```
+
+```{r}
+d3heatmap(lrt_mat)
+```
+

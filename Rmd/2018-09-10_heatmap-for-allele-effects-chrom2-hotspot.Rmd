@@ -10,9 +10,14 @@ output: github_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+```{r}
+library(tidyverse)
+```
+
+
 ## Goal
 
-Goal in this Rmd file is to write code needed for creation of a heatmap of allele effects values for every trait that maps to chromosome 2 hotspot.
+Goal in this Rmd file is to write code needed for creation of a heatmap of allele effects values for every trait that maps to chromosome 2 hotspot and many local traits near the hotspot.
 
 ## Resources for heatmaps in R
 
@@ -42,24 +47,27 @@ First, we need to scan chromosome 2 with each trait. From the scan outputs, we c
 First, we need to read the .Rdata file that we downloaded from DataDryad.
 
 ```{r}
-load("../data/Attie_DO378_eQTL_viewer_v1.Rdata")
+load("../data-to-ignore/Attie_DO378_eQTL_viewer_v1.Rdata")
 readRDS("../data/hotspot_expr_tib2_keller_chr2.rds") -> hotspot_expr
-readRDS("../data/keller2018-chr2-local-expr.rds") -> local_expr
-
+readRDS("../data/keller2018-chr2-local-expr.rds") -> local_expr21
+readRDS("../data/keller2018-chr2-local-expr-114.rds") -> local_expr114
+local_expr <- local_expr114 %>%
+  full_join(local_expr21)
 ```
 
-We also loaded the two RDS files that contain the expression values for the traits of interest.
+We also loaded the RDS files that contain the expression values for the traits of interest.
 
 The genotypes probabilities are their own object (loaded with the DataDryad file), `genoprobs`.
 
 ```{r}
 library(qtl2)
 # convert to needed phenotypes input format for scan1
-as.matrix(local_expr[, 1:21]) -> local_expr_mat
-rownames(local_expr_mat) <- local_expr[, 22]
+as.matrix(local_expr[, c(1:114, 116)]) -> local_expr_mat 
+# col 115 is the mouse_id
+rownames(local_expr_mat) <- local_expr[, 115] %>% unlist() %>% as.character()
 #
 as.matrix(hotspot_expr[, 1:139]) -> hotspot_expr_mat
-rownames(hotspot_expr_mat) <- hotspot_expr[, 140]
+rownames(hotspot_expr_mat) <- hotspot_expr[, 140] %>% unlist() %>% as.character()
 #
 # isolate additive covariates
 dataset.islet.rnaseq$covar -> addcovar
@@ -89,7 +97,7 @@ Next, we calculate allele effects for each trait on chromosome 2. We keep separa
 ```{r}
 # local traits
 local_effects <- list()
-for (i in 1:21){
+for (i in 1:115){
   scan1coef(genoprobs = genoprobs[ , 2], 
             pheno = local_expr_mat[ , i],
             kinship = K[[2]],
@@ -175,7 +183,7 @@ Our goal here is to present the univariate allele effects plots for each trait b
 # we have 4711 markers on chr 1 and 4709 on chr 2. Thus chr2 starts with marker 4710 and ends with 9420
 
 
-for (i in 1:21){
+for (i in 1:ncol(local_expr_mat)){
   plot_coefCC(x = local_effects[[i]], 
               map = map, scan1_output = NULL, add = FALSE
               ) # be careful - do we need to subset the scan1_output to only those markers on chromosome 2?
@@ -222,13 +230,6 @@ tidy_effects <- function(effects_mat){
 ```
 
 
-Now, we input an allele effects matrix to `tidy_effects`:
-
-```{r}
-tidy_effects(local_effects_at_peaks_mat) %>%
-  ggplot(aes(y = gene_expr_id, x = founder_allele)) +
-  geom_tile(aes(fill = effect_size)) 
-```
 
 ## Clustering genes' allele effects
 
@@ -247,69 +248,6 @@ local_hc <- local_effects_at_peaks_mat %>%
   dist() %>%
   hclust()
 ```
-
-```{r}
-tidy_effects(local_effects_at_peaks_mat[local_hc$order, ]) %>%
-  ggplot(aes(y = gene_expr_id, x = founder_allele)) +
-  geom_tile(aes(fill = effect_size)) 
-```
-
-Heatmap above has rows ordered in numerical order. Yet, I called the function `tidy_effects`.
-
-## Heatmaps for nonlocal traits that map to chromosome 2 hotspot
-
-```{r}
-tidy_effects(hotspot_effects_at_peaks_mat) %>%
-  ggplot(aes(y = gene_expr_id, x = founder_allele)) +
-  geom_tile(aes(fill = effect_size)) 
-```
-
-The "E" allele seems to have high values in a large number of traits.
-
-Let's also do hierarchical clustering on the genes' allele effects and reorder them before plotting. 
-
-
-
-
-## Using gene expression data to hierarchically cluster (and order) genes
-
-Rather than using allele effects to cluster genes, let's look use the raw expression values.
-
-```{r}
-hotspot_effects_at_peaks_mat %>%
-  dist() %>%
-  hclust() %>%
-  plot()
-hotspot_hc <- hotspot_effects_at_peaks_mat %>%
-  dist() %>%
-  hclust()
-```
-
-```{r}
-tidy_effects(hotspot_effects_at_peaks_mat[hotspot_hc$order, ]) %>%
-  ggplot(aes(y = gene_expr_id, x = founder_allele)) +
-  geom_tile(aes(fill = effect_size)) 
-```
-
-## Order nonlocal traits by value of "E" allele
-
-```{r}
-hotspot_effects_at_peaks_mat[order(hotspot_effects_at_peaks_mat[ , 8]), ] %>%
-  tidy_effects() %>%
-  ggplot(aes(y = gene_expr_id, x = founder_allele)) +
-  geom_tile(aes(fill = effect_size)) 
-```
-
-
-## Order nonlocal traits by value of "H" allele
-
-My initial attempt at this failed, as I was unaware of hte fact that geom_tile function in ggplot2 does its own sorting by name.
-
-
-
-## Trying to understand ordering in plots when using `geom_tile`
-
-It seems that `geom_tile` applies an ordering step when deciding ordering of rows and columns in my attempts at heatmaps. Is there another function that I might use? Base R has `heatmap`.
 
 ## Exploring with `d3heatmap` R package
 
