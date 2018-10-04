@@ -93,8 +93,8 @@ scan1(genoprobs = genoprobs, pheno = hotspot_expr_mat, kinship = K, addcovar = a
 We save the scan1 outputs, because they take some time to re-run.
 
 ```{r}
-saveRDS(s1_local, "s1_local.rds")
-saveRDS(s1_hotspot, "s1_hotspot.rds")
+saveRDS(s1_local, "../data/s1_local.rds")
+saveRDS(s1_hotspot, "../data/s1_hotspot.rds")
 ```
 
 
