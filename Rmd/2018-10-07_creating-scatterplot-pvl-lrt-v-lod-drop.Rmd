@@ -1,0 +1,244 @@
+---
+title: "Comparing LRT for pleiotropy v separate QTL against LOD drop in mediation analyses"
+author: "Frederick Boehm"
+date: "10/7/2018"
+output: github_document
+---
+
+Our goal here is to examine the relationships between pleiotropy v separate QTL analyses and mediation analyses. We study with these methods the chromosome 2 hotspot in the Keller et al 2018 pancreatic islet expression data.
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+First, we load the Keller 2018 data.
+
+```{r}
+load("../data-to-ignore/Attie_DO378_eQTL_viewer_v1.Rdata")
+readRDS("../data/hotspot_expr_tib2_keller_chr2.rds") -> hotspot_expr
+readRDS("../data/keller2018-chr2-local-expr.rds") -> local_expr
+```
+
+We get the annotation information on the genes that map to chromosome 2's hotspot.
+
+```{r}
+dataset.islet.rnaseq$annots %>%
+  filter(hotspot == "chr2")
+```
+
+
+```{r}
+# what is the ENSEMBL id for Hnf4a?
+hnf4a_id <- "ENSMUSG00000017950"
+# define mediator - a numeric vector with mouse ids as names
+med <- local_expr %>%
+  select(hnf4a_id)
+rownames(med) <- local_expr$mouse_id
+# define target - a numeric vector with names (mouse ids)
+tar_id <- "ENSMUSG00000000544"
+tar <- hotspot_expr %>%
+  select(tar_id) %>%
+  unlist()
+names(tar) <- hotspot_expr$mouse_id
+```
+
+We still need to define the driver for input to `intermediate::mediation_scan`.
+
+```{r}
+# define driver
+## to define driver, we need to find the peak position for Hnf4a gene expression levels
+library(qtl2)
+# convert to needed phenotypes input format for scan1
+as.matrix(local_expr[, 1:21]) -> local_expr_mat
+rownames(local_expr_mat) <- local_expr$mouse_id %>% unlist() %>% as.character()
+#
+as.matrix(hotspot_expr[, 1:139]) -> hotspot_expr_mat
+rownames(hotspot_expr_mat) <- hotspot_expr$mouse_id %>% unlist() %>% as.character()
+#
+# isolate additive covariates
+dataset.islet.rnaseq$covar -> addcovar
+```
+
+
+
+
+We save the scan1 outputs, because they take some time to re-run.
+
+```{r}
+s1_local <- readRDS("../data/s1_local.rds")
+s1_hotspot <- readRDS("../data/s1_hotspot.rds")
+```
+
+
+
+We now search the outputs of `scan1` to identify peaks:
+
+```{r}
+find_peaks(s1_local, map = map, threshold = 20) -> local_peaks
+find_peaks(s1_hotspot, map = map) -> hotspot_peaks
+```
+
+```{r}
+map_chr2_tib <- tibble(pos = map$`2`, index = 1:length(map$`2`))
+hnf4a_peak_position <- local_peaks %>%
+  filter(lodcolumn == hnf4a_id) %>% 
+  left_join(map_chr2_tib, by = "pos") %>%
+  select(index) %>% 
+  unlist() %>%
+  as.numeric()
+```
+
+
+
+```{r}
+dri <- genoprobs[[2]][rownames(genoprobs[[2]]) %in% hotspot_expr$mouse_id, , hnf4a_peak_position] 
+# We take the second item in the genoprobs list because the peaks are on Chromosome TWO
+```
+
+We also need to define an annotation dataframe.
+
+```{r}
+ann <- dataset.islet.rnaseq$annots %>%
+  filter(gene_id == hnf4a_id) %>% 
+  rename(pos = middle, id = gene_id)
+```
+
+Let's subset the driver and the covariates:
+
+```{r}
+addcovar2 <- addcovar[rownames(addcovar) %in% names(tar), ]
+dri2 <- dri[rownames(dri) %in% names(tar), ]
+```
+
+
+
+
+```{r}
+rna_annot <- dataset.islet.rnaseq$annots %>%
+  as_tibble() %>%
+  select(gene_id, symbol)
+```
+
+
+
+## Mediation analyses
+
+```{r}
+# before setting up dri2, we need to find peak indices for the hotspot traits. 
+# Join with map object
+h2 <- hotspot_peaks %>%
+  filter(chr == 2) %>%
+  left_join(map_chr2_tib)
+# set up drivers
+#dri <- genoprobs[[2]][rownames(genoprobs[[2]]) %in% hotspot_expr$mouse_id, , h2$index] 
+
+# mediation scan calls
+med_lod_drop <- numeric()
+for (i in 1:ncol(hotspot_expr_mat)){
+  #med_lod_drop[i] <- mediation_scan(hotspot_expr_mat[ , i], driver = dri[ , , i], mediator = med, annotation = ann, covar = addcovar2)$lod
+  med_lod_drop[i] <- mediation_scan(hotspot_expr_mat[ , i], driver = dri, mediator = med, annotation = ann, covar = addcovar2)$lod
+}
+meds <- tibble(local_gene_id = hnf4a_id, nonlocal_gene_id = colnames(hotspot_expr)[-140], med_lod_drop)
+```
+
+
+
+
+
+
+
+## Tabulate lod drops
+
+```{r}
+sum(meds$med_lod_drop > 1.5)
+sum(meds$med_lod_drop <= 1.5)
+```
+
+
+
+
+
+## Tabulating the pleiotropy v separate QTL LRT statistics
+
+Our goal is to analyze the results of pvl scan results files from CHTC.
+
+```{r}
+library(qtl2chtc)
+```
+
+```{r}
+dir(path = "../results/pvl-run2001/", pattern = "*.txt") -> fns
+  lrt <- numeric()
+  i <- 1
+  for (fn in fns){
+    read.table(file.path("../results/pvl-run2001/", fn)) -> scan_out
+    qtl2pleio::calc_lrt_tib(scan_out) -> lrt[i]
+    i <- i + 1
+  }
+tibble::tibble(fns, lrt) -> r2001
+```
+
+
+Let's parse the file names in `r2001` into meaningful fields, like gene names.
+
+```{r}
+library(stringr)
+```
+
+```{r}
+splitted <- r2001$fns %>% 
+  str_split(pattern = "_") 
+
+my_split <- function(string_vec, pattern = ".txt"){
+  foo <- str_split(string_vec, pattern)
+  sapply(FUN = function(x)x[1], X = foo)
+}
+res2001 <- sapply(FUN = function(x)x[1:4], X = splitted) %>% 
+  t() %>%
+  as_tibble() %>%
+  rename(run_num = V1, job_num = V2, local_gene_id = V3) %>%
+  mutate(nonlocal_gene_id = my_split(V4)) %>%
+  select(- V4) %>%
+  mutate(lrt = r2001$lrt) %>%
+  arrange(desc(lrt)) %>%
+  left_join(rna_annot, by = c("nonlocal_gene_id" = "gene_id")) %>%
+  rename(nonlocal_gene_symbol = symbol) %>%
+  left_join(rna_annot, by = c("local_gene_id" = "gene_id")) %>%
+  rename(local_gene_symbol = symbol)
+  
+
+  
+```
+
+
+```{r}
+hist(res2001$lrt)
+```
+
+```{r}
+sum(res2001$lrt > 4)
+```
+
+
+
+## Join pleiotropy v separate QTL LRT tibble with LOD drops tibble
+
+```{r}
+library(plotly)
+```
+    
+```{r}
+pp <- meds %>% 
+  left_join(res2001) %>%
+  ggplot() + aes(x = lrt, y = med_lod_drop, colour = nonlocal_gene_symbol) + geom_point() + theme(legend.position="none")
+saveRDS(pp, "../data/hnf4a-lod-drops-ggplot.rds")
+saveRDS(pp, "../../committee-meeting-2018/data/hnf4a-lod-drops-ggplot.rds") # for committee meeting slides
+ggplotly(pp, tooltip = c("colour", "x", "y")) 
+```
+
+

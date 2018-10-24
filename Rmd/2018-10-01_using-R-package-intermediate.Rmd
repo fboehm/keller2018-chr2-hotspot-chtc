@@ -241,7 +241,7 @@ calc_lod_drop <- function(probs, # a matrix, ie, a driver
                                 pheno = pheno, 
                                 kinship = kinship, 
                                 addcovar = cbind(addcovar, putative_mediator))$lod
-  return(lod_no_mediator - lod_mediator)
+  return(list(lod_drop = lod_no_mediator - lod_mediator, lod_no_mediator = lod_no_mediator, lod_with_mediator = lod_mediator))
 }
 ```
 
