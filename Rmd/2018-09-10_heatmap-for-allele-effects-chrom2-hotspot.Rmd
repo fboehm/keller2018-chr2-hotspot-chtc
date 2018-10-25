@@ -1,6 +1,5 @@
 ---
-title: "Visualizing allele effects patterns across traits that map to chromosome 2
-  hotspot"
+title: "Visualizing allele effects patterns across traits that map to chromosome 2 hotspot"
 author: "Frederick Boehm"
 date: "9/10/2018"
 output: github_document
@@ -76,11 +75,8 @@ dataset.islet.rnaseq$covar -> addcovar
 
 
 ```{r}
-scan1(genoprobs = genoprobs, pheno = local_expr_mat, kinship = K, addcovar = addcovar, reml = TRUE
-        ) -> s1_local
-scan1(genoprobs = genoprobs, pheno = hotspot_expr_mat, kinship = K, addcovar = addcovar, reml = TRUE
-        ) -> s1_hotspot
-
+s1_local <- readRDS("../data/s1_local.rds")
+s1_hotspot <- readRDS("../data/s1_hotspot.rds")
 ```
 
 We now search the outputs of `scan1` to identify peaks:
@@ -156,11 +152,17 @@ get_effects <- function(marker_index, allele_effects_matrix, map){
 ```{r}
 hotspot_effects_at_peaks <- list()
 for (i in 1:nrow(hotspot_peaks2)){
-  hotspot_effects_at_peaks[[i]] <- get_effects(hotspot_peaks2$index[i], allele_effects_matrix = hotspot_effects[[i]], map = map[[2]]) # need map for chromosome 2 here.
+  hotspot_effects_at_peaks[[i]] <- get_effects(hotspot_peaks2$index[i],
+                                               allele_effects_matrix = hotspot_effects[[i]], 
+                                               map = map[[2]]
+                                               ) # need map for chromosome 2 here.
 }
 local_effects_at_peaks <- list()
 for (i in 1:nrow(local_peaks2)){
-  local_effects_at_peaks[[i]] <- get_effects(local_peaks2$index[i], allele_effects_matrix = local_effects[[i]], map = map[[2]]) # need map for chromosome 2 here.
+  local_effects_at_peaks[[i]] <- get_effects(local_peaks2$index[i], 
+                                             allele_effects_matrix = local_effects[[i]],
+                                             map = map[[2]]
+                                             ) # need map for chromosome 2 here.
 }
 ```
 
@@ -168,17 +170,30 @@ We then arrange the two sets of allele effects into matrices.
 
 ```{r}
 # organize effects into a matrix
-local_effects_at_peaks_mat <- sapply(FUN = function(x)x, X = local_effects_at_peaks) %>% t()
+local_effects_at_peaks_mat <- sapply(FUN = function(x)x, 
+                                     X = local_effects_at_peaks) %>% t()
 rownames(local_effects_at_peaks_mat) <- local_peaks2$lodcolumn
-hotspot_effects_at_peaks_mat <- sapply(FUN = function(x)x, X = hotspot_effects_at_peaks) %>% t()
+hotspot_effects_at_peaks_mat <- sapply(FUN = function(x)x, 
+                                       X = hotspot_effects_at_peaks) %>% t()
 rownames(hotspot_effects_at_peaks_mat) <- hotspot_peaks2$lodcolumn
 ```
+
+```{r}
+saveRDS(local_effects_at_peaks_mat, "../data/founder_allele_effects_local_traits_matrix.rds")
+
+saveRDS(hotspot_effects_at_peaks_mat, "../data/founder_allele_effects_hotspot_traits_matrix.rds")
+
+saveRDS(hotspot_effects, "../data/founder_allele_effects_hotspot.rds")
+saveRDS(local_effects, "../data/founder_allele_effects_local.rds")
+```
+
+
 
 ## Code to create allele effects plots for chromosome 2 for each univariate trait.
 
 Our goal here is to present the univariate allele effects plots for each trait being studied in this document - ie, 21 local traits and 139 nonlocal traits.
 
-```{r}
+```{r, eval = FALSE}
 # first, subset s1_local to get only those traits that are on chromosome 2
 # we have 4711 markers on chr 1 and 4709 on chr 2. Thus chr2 starts with marker 4710 and ends with 9420
 
@@ -198,25 +213,6 @@ for (i in 1:ncol(local_expr_mat)){
 
 
 
-
-## R code for heatmaps with ggplot2
-
-I now want to visualize the two matrices (1. hotspot traits and 2. local traits) of allele effects with heatmaps.
-
-To use the ggplot2 package we need to first arrange the data in tidy format. One row per founder allele value, with additional columns to specify which allele and which gene. So it will be a 1112 x 3 tibble.
-
-We want to be careful when calling a function such as `as.vector` to arrange the values in the matrix.
-
-```{r}
-foo <- matrix(1:8, nrow = 2)
-foo
-as.vector(foo)
-bar <- matrix(1:8, nrow = 2, byrow = TRUE)
-bar
-as.vector(bar)
-```
-
-We see from the above that `as.vector` concatenates columns of a matrix.
 
 We first prepare a helper function:
 
@@ -307,6 +303,18 @@ Now that we have ordered the input matrix, let's call the heatmap function:
 ```{r}
 d3heatmap(hotspot_effects_ordered_by_lod, Rowv = FALSE, Colv = FALSE)
 ```
+
+## Correlations among allele effects vectors
+
+```{r}
+
+```
+
+
+
+
+
+
 
 ### Mediation test results in the heatmaps
 

@@ -1,0 +1,370 @@
+---
+title: "Comparing LRT for pleiotropy v separate QTL against LOD drop in mediation analyses"
+author: "Frederick Boehm"
+date: "10/7/2018"
+output: github_document
+---
+
+Our goal here is to examine the relationships between pleiotropy v separate QTL analyses and mediation analyses. We study with these methods the chromosome 2 hotspot in the Keller et al 2018 pancreatic islet expression data.
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(qtl2)
+```
+
+First, we load the Keller 2018 data.
+
+```{r}
+load("../data-to-ignore/Attie_DO378_eQTL_viewer_v1.Rdata")
+readRDS("../data/hotspot_expr_tib2_keller_chr2.rds") -> hotspot_expr
+readRDS("../data/keller2018-chr2-local-expr.rds") -> local_expr
+```
+
+We get the annotation information on the genes that map to chromosome 2's hotspot.
+
+```{r}
+dataset.islet.rnaseq$annots %>%
+  filter(hotspot == "chr2")
+```
+
+
+```{r}
+# what is the ENSEMBL id for Hnf4a?
+hnf4a_id <- "ENSMUSG00000017950"
+dataset.islet.rnaseq$covar -> addcovar
+```
+
+
+
+
+We save the scan1 outputs, because they take some time to re-run.
+
+```{r}
+s1_local <- readRDS("../data/s1_local.rds")
+s1_hotspot <- readRDS("../data/s1_hotspot.rds")
+```
+
+
+
+We now search the outputs of `scan1` to identify peaks:
+
+```{r}
+find_peaks(s1_local, map = map, threshold = 20) -> local_peaks
+find_peaks(s1_hotspot, map = map) -> hotspot_peaks
+```
+
+```{r}
+map_chr2_tib <- tibble(pos = map$`2`, index = 1:length(map$`2`))
+hnf4a_peak_position <- local_peaks %>%
+  filter(lodcolumn == hnf4a_id) %>% 
+  left_join(map_chr2_tib, by = "pos") %>%
+  select(index) %>% 
+  unlist() %>%
+  as.numeric()
+```
+
+
+
+
+
+
+
+```{r}
+rna_annot <- dataset.islet.rnaseq$annots %>%
+  as_tibble() %>%
+  select(gene_id, symbol)
+```
+
+
+
+
+## Tabulating the pleiotropy v separate QTL LRT statistics
+
+Our goal is to analyze the results of pvl scan results files from CHTC.
+
+```{r}
+library(qtl2chtc)
+```
+
+```{r}
+dir(path = "../results/pvl-run2001/", pattern = "*.txt") -> fns
+  lrt <- numeric()
+  i <- 1
+  for (fn in fns){
+    read.table(file.path("../results/pvl-run2001/", fn)) -> scan_out
+    qtl2pleio::calc_lrt_tib(scan_out) -> lrt[i]
+    i <- i + 1
+  }
+tibble::tibble(fns, lrt) -> r2001
+```
+
+
+Let's parse the file names in `r2001` into meaningful fields, like gene names.
+
+```{r}
+library(stringr)
+```
+
+```{r}
+splitted <- r2001$fns %>% 
+  str_split(pattern = "_") 
+
+my_split <- function(string_vec, pattern = ".txt"){
+  foo <- str_split(string_vec, pattern)
+  sapply(FUN = function(x)x[1], X = foo)
+}
+res2001 <- sapply(FUN = function(x)x[1:4], X = splitted) %>% 
+  t() %>%
+  as_tibble() %>%
+  rename(run_num = V1, job_num = V2, local_gene_id = V3) %>%
+  mutate(nonlocal_gene_id = my_split(V4)) %>%
+  select(- V4) %>%
+  mutate(lrt = r2001$lrt) %>%
+  arrange(desc(lrt)) %>%
+  left_join(rna_annot, by = c("nonlocal_gene_id" = "gene_id")) %>%
+  rename(nonlocal_gene_symbol = symbol) %>%
+  left_join(rna_annot, by = c("local_gene_id" = "gene_id")) %>%
+  rename(local_gene_symbol = symbol)
+```
+
+
+```{r}
+hist(res2001$lrt)
+```
+
+```{r}
+sum(res2001$lrt > 4)
+```
+
+### run 2002: tabulating lrt statistics
+
+```{r}
+dir(path = "../results/pvl-run2002/", pattern = "*.txt") -> fns
+lrt <- numeric()
+i <- 1
+for (fn in fns){
+    read.table(file.path("../results/pvl-run2002/", fn)) -> scan_out
+    qtl2pleio::calc_lrt_tib(scan_out) -> lrt[i]
+    i <- i + 1
+}
+tibble::tibble(fns, lrt) -> r2002
+```
+
+```{r}
+splitted <- r2002$fns %>% 
+  str_split(pattern = "_") 
+
+res2002 <- sapply(FUN = function(x)x[1:4], X = splitted) %>% 
+  t() %>%
+  as_tibble() %>%
+  rename(run_num = V1, job_num = V2, local_gene_id = V3) %>%
+  mutate(nonlocal_gene_id = my_split(V4)) %>%
+  select(- V4) %>%
+  mutate(lrt = r2002$lrt) %>%
+  arrange(desc(lrt)) %>%
+  left_join(rna_annot, by = c("nonlocal_gene_id" = "gene_id")) %>%
+  rename(nonlocal_gene_symbol = symbol) %>%
+  left_join(rna_annot, by = c("local_gene_id" = "gene_id")) %>%
+  rename(local_gene_symbol = symbol)
+```
+
+```{r}
+saveRDS(res2002, "../data/pvl-lrt-run2002.rds")
+```
+
+```{r}
+res2002
+```
+
+To create a heatmap, we want to make a matrix. First, let's add in the Hnf4a results.
+
+```{r}
+res <- res2002 %>%
+  bind_rows(res2001)
+```
+
+```{r}
+saveRDS(res, "../data/pvl-lrt-runs-2001-and-2002.rds")
+```
+
+Let's arrange `res` by gene symbols:
+
+```{r}
+(res_ordered <- res %>% 
+  arrange(local_gene_symbol, nonlocal_gene_symbol))
+res_ordered$lrt -> res_lrt
+```
+
+We see that the first 139 rows of `res_ordered` have the same local gene value. Therefore, in a matrix with 139 rows, we want the first 139 entries to all go in the first column.
+
+
+
+```{r}
+lrt_mat <- matrix(nrow = 139, ncol = 21, data = res_lrt, byrow = FALSE)
+lrt_mat[2, 1] == res_ordered$lrt[2]
+lrt_mat[10, 2] == res_ordered$lrt[139 + 10]
+(nonlocal_unique <- unique(res_ordered$nonlocal_gene_symbol))
+rownames(lrt_mat) <- nonlocal_unique
+colnames(lrt_mat) <- unique(res_ordered$local_gene_symbol)
+```
+
+```{r}
+library(d3heatmap)
+```
+
+```{r}
+d3heatmap(t(lrt_mat))
+```
+In the above heatmap, it looks like 4 local transcripts: Stk4, Pabpc1l, Pkig, and Serinc3 - all have results like those of Hnf4a. 
+
+Let's calculate the correlation matrix for the traits.
+
+
+```{r}
+expr_all <- hotspot_expr %>%
+  left_join(local_expr) %>%
+  select(- mouse_id) %>% 
+  as.matrix()
+expr_cor <- expr_all %>%
+  cor() 
+expr_tib <- tibble(cor = as.vector(expr_cor), 
+       gene1 = rep(rownames(expr_cor), 
+                   times = nrow(expr_cor)), 
+       gene2 = rep(colnames(expr_cor), 
+                   each = nrow(expr_cor))
+       )
+```
+
+```{r}
+e_tib <- expr_tib %>% 
+  left_join(rna_annot, by = c("gene1" = "gene_id")) %>%
+  rename(g1_symbol = symbol) %>%
+  left_join(rna_annot, by = c("gene2" = "gene_id")) %>%
+  rename(g2_symbol = symbol) 
+
+e_tib %>%
+  filter(g1_symbol == "Hnf4a") %>% 
+  arrange(desc(cor))
+```
+
+Which local genes are correlated with Hnf4a? 
+
+```{r}
+e_tib %>%
+  filter(g1_symbol == "Hnf4a") %>% 
+  filter(g2_symbol %in% colnames(lrt_mat)) %>% # subset to only the local genes
+  arrange(desc(cor))
+
+```
+
+Compare these correlations with the test statistic values in the heatmap above. Recall the four transcripts that have lrts like those of Hnf4a: 
+
+Stk4, Pabpc1l, Pkig, and Serinc3
+
+Serinc3 has a correlation of 0.002 with Hnf4a.
+
+## Heatmap when ordering the local traits by chromosomal position
+
+```{r}
+(dat <- dataset.islet.rnaseq$annots %>%
+  select(gene_id, middle, symbol) %>%
+  right_join(res, by = c("symbol" = "local_gene_symbol")) %>%
+  rename(local_gene_symbol = symbol) %>%
+  select(- gene_id) %>%
+  arrange(middle))
+(locals_ordered <- dat$local_gene_symbol %>% unique())
+lrt_mat[ , match(table = colnames(lrt_mat), x = locals_ordered)] %>%
+  t() %>%
+  d3heatmap(Rowv = FALSE, Colv = TRUE)
+```
+
+Let's examine allele effects plots for Hnf4a's transcripts and those transcripts nearest Hnf4a, ie: Serinc3, Pkig, Pabpc1l, and Stk4. 
+
+```{r}
+readRDS("../data/founder_allele_effects_hotspot_traits_matrix.rds") -> hotspot_effects_mat
+readRDS("../data/founder_allele_effects_local_traits_matrix.rds") -> local_effects_mat
+hotspot_effects <- readRDS("../data/founder_allele_effects_hotspot.rds")
+local_effects <- readRDS("../data/founder_allele_effects_local.rds")
+
+```
+
+```{r}
+l2 <- local_effects_mat 
+indices <- match(rownames(l2), rna_annot$gene_id)
+rownames(l2) <- rna_annot$symbol[indices]
+h2 <- hotspot_effects_mat
+indices <- match(rownames(h2), rna_annot$gene_id)
+rownames(h2) <- rna_annot$symbol[indices]
+```
+
+I expanded the set of "local traits" a few weeks ago, so we need to load two local trait files:
+
+```{r}
+readRDS("../data/keller2018-chr2-local-expr.rds") -> local_expr21
+readRDS("../data/keller2018-chr2-local-expr-114.rds") -> local_expr114
+local_expr <- local_expr114 %>%
+  full_join(local_expr21)
+```
+
+
+```{r}
+# make matrices
+as.matrix(local_expr[, c(1:114, 116)]) -> local_expr_mat 
+# col 115 is the mouse_id
+rownames(local_expr_mat) <- local_expr[, 115] %>% 
+  unlist() %>% 
+  as.character()
+#
+as.matrix(hotspot_expr[, 1:139]) -> hotspot_expr_mat
+rownames(hotspot_expr_mat) <- hotspot_expr[, 140] %>% 
+  unlist() %>% 
+  as.character()
+```
+
+Give gene symbol names to each element in the allele effects lists.
+
+```{r}
+indices <- match(colnames(hotspot_expr_mat), rna_annot$gene_id)
+names(hotspot_effects) <- rna_annot$symbol[indices]
+indices <- match(colnames(local_expr_mat), rna_annot$gene_id)
+names(local_effects) <- rna_annot$symbol[indices]
+```
+
+```{r}
+library(qtl2)
+```
+
+```{r}
+plot_coefCC(local_effects$Hnf4a, map = map, chr = 2)
+```
+
+```{r}
+plot_coefCC(local_effects$Serinc3, map = map, chr = 2)
+```
+
+```{r}
+plot_coefCC(local_effects$Pkig, map = map, chr = 2)
+```
+
+```{r}
+plot_coefCC(local_effects$Pabpc1l, map = map, chr = 2)
+```
+
+```{r}
+plot_coefCC(local_effects$Stk4, map = map, chr = 2)
+```
+
+```{r}
+plot_coefCC(hotspot_effects$Gpr20, map = map, chr = 2)
+```
+
+```{r}
+plot_coefCC(hotspot_effects$Pgrmc1, map = map, chr = 2)
+```
+We saw that Pgrmc1, paired with Hnf4a, has a small LRT statistic (for pleiotropy v separate QTL). Note now that it also has some similarities in allele effects patterns with those of Hnf4a. The negative purple trace stands out in both Hnf4a and Pgrmc1.
+
