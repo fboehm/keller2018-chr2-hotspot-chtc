@@ -1,8 +1,11 @@
 ---
 title: "Comparing LRT for pleiotropy v separate QTL against LOD drop in mediation analyses"
 author: "Frederick Boehm"
-date: "10/7/2018"
-output: github_document
+date: "`r lubridate::now()`"
+output: 
+  github_document:
+    toc: true
+    toc_depth: 2
 ---
 
 Our goal here is to examine the relationships between pleiotropy v separate QTL analyses and mediation analyses. We study with these methods the chromosome 2 hotspot in the Keller et al 2018 pancreatic islet expression data.
@@ -29,7 +32,8 @@ We get the annotation information on the genes that map to chromosome 2's hotspo
 
 ```{r}
 dataset.islet.rnaseq$annots %>%
-  filter(hotspot == "chr2")
+  filter(hotspot == "chr2") %>%
+  as_tibble()
 ```
 
 
@@ -111,25 +115,22 @@ library(stringr)
 ```
 
 ```{r}
-splitted <- r2001$fns %>% 
-  str_split(pattern = "_") 
-
-my_split <- function(string_vec, pattern = ".txt"){
-  foo <- str_split(string_vec, pattern)
-  sapply(FUN = function(x)x[1], X = foo)
-}
-res2001 <- sapply(FUN = function(x)x[1:4], X = splitted) %>% 
-  t() %>%
+res2001 <- r2001 %>%
+  select(fns) %>%
+  unlist() %>%
+  str_split_fixed(pattern = "_", n = 4) %>%
   as_tibble() %>%
-  rename(run_num = V1, job_num = V2, local_gene_id = V3) %>%
-  mutate(nonlocal_gene_id = my_split(V4)) %>%
-  select(- V4) %>%
+  rename(run = V1, job = V2, local_gene_id = V3, nonlocal_gene_id = V4) %>%
+  mutate(job = as.numeric(job)) %>%
+  mutate(nonlocal_gene_id = str_remove(nonlocal_gene_id, pattern = ".txt")) %>%
   mutate(lrt = r2001$lrt) %>%
   arrange(desc(lrt)) %>%
   left_join(rna_annot, by = c("nonlocal_gene_id" = "gene_id")) %>%
   rename(nonlocal_gene_symbol = symbol) %>%
   left_join(rna_annot, by = c("local_gene_id" = "gene_id")) %>%
   rename(local_gene_symbol = symbol)
+
+
 ```
 
 
@@ -156,30 +157,54 @@ tibble::tibble(fns, lrt) -> r2002
 ```
 
 ```{r}
-splitted <- r2002$fns %>% 
-  str_split(pattern = "_") 
-
-res2002 <- sapply(FUN = function(x)x[1:4], X = splitted) %>% 
-  t() %>%
+res2002 <- r2002 %>%
+  select(fns) %>%
+  unlist() %>%
+  str_split_fixed(pattern = "_", n = 4) %>%
   as_tibble() %>%
-  rename(run_num = V1, job_num = V2, local_gene_id = V3) %>%
-  mutate(nonlocal_gene_id = my_split(V4)) %>%
-  select(- V4) %>%
+  rename(run = V1, job = V2, local_gene_id = V3, nonlocal_gene_id = V4) %>%
+  mutate(job = as.numeric(job)) %>%
+  mutate(nonlocal_gene_id = str_remove(nonlocal_gene_id, pattern = ".txt")) %>%
   mutate(lrt = r2002$lrt) %>%
   arrange(desc(lrt)) %>%
   left_join(rna_annot, by = c("nonlocal_gene_id" = "gene_id")) %>%
   rename(nonlocal_gene_symbol = symbol) %>%
   left_join(rna_annot, by = c("local_gene_id" = "gene_id")) %>%
   rename(local_gene_symbol = symbol)
+
 ```
 
 ```{r}
-saveRDS(res2002, "../data/pvl-lrt-run2002.rds")
+#saveRDS(res2002, "../data/pvl-lrt-run2002.rds")
 ```
 
 ```{r}
 res2002
 ```
+
+## Histograms of 139 hotspot traits by local gene
+
+```{r, fig.height="20in"}
+res2002 %>%
+  bind_rows(res2001) %>%
+  filter(local_gene_symbol %in% c("Gm14291", "Ptgis", "Prex1", "Eya2", "Hnf4a")) %>%
+  ggplot(aes(x = lrt)) + geom_histogram() + facet_grid(local_gene_symbol ~ .)
+```
+
+## Histograms of 21 local genes by some nonlocal genes
+
+First, identify those nonlocal genes that seem to be not pleiotropic with Hnf4a.
+
+```{r}
+nl <- res2001 %>%
+  filter(lrt > 5)
+```
+
+
+
+
+
+## Heatmaps
 
 To create a heatmap, we want to make a matrix. First, let's add in the Hnf4a results.
 
@@ -189,7 +214,7 @@ res <- res2002 %>%
 ```
 
 ```{r}
-saveRDS(res, "../data/pvl-lrt-runs-2001-and-2002.rds")
+#saveRDS(res, "../data/pvl-lrt-runs-2001-and-2002.rds")
 ```
 
 Let's arrange `res` by gene symbols:
@@ -366,5 +391,7 @@ plot_coefCC(hotspot_effects$Gpr20, map = map, chr = 2)
 ```{r}
 plot_coefCC(hotspot_effects$Pgrmc1, map = map, chr = 2)
 ```
-We saw that Pgrmc1, paired with Hnf4a, has a small LRT statistic (for pleiotropy v separate QTL). Note now that it also has some similarities in allele effects patterns with those of Hnf4a. The negative purple trace stands out in both Hnf4a and Pgrmc1.
+We saw that Pgrmc1, paired with Hnf4a, has a small LRT statistic (for pleiotropy v separate QTL). Note now that it also has some similarities in allele effects patterns with those of Hnf4a. The negative purple trace stands out in both Hnf4a and Pgrmc1. But note also the light blue and the green in Pgrmc1 vs. the light blue in Hnf4a.
+
+
 

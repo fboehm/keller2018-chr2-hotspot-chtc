@@ -2,7 +2,10 @@
 title: "Comparing LRT for pleiotropy v separate QTL against LOD drop in mediation analyses"
 author: "Frederick Boehm"
 date: "10/7/2018"
-output: github_document
+output: 
+  github_document:
+    toc: true
+    toc_depth: 2
 ---
 
 Our goal here is to examine the relationships between pleiotropy v separate QTL analyses and mediation analyses. We study with these methods the chromosome 2 hotspot in the Keller et al 2018 pancreatic islet expression data.
@@ -129,6 +132,12 @@ rna_annot <- dataset.islet.rnaseq$annots %>%
 ## Mediation analyses
 
 ```{r}
+library(intermediate)
+```
+
+
+
+```{r}
 # before setting up dri2, we need to find peak indices for the hotspot traits. 
 # Join with map object
 h2 <- hotspot_peaks %>%
@@ -138,12 +147,14 @@ h2 <- hotspot_peaks %>%
 #dri <- genoprobs[[2]][rownames(genoprobs[[2]]) %in% hotspot_expr$mouse_id, , h2$index] 
 
 # mediation scan calls
-med_lod_drop <- numeric()
+out <- list()
 for (i in 1:ncol(hotspot_expr_mat)){
   #med_lod_drop[i] <- mediation_scan(hotspot_expr_mat[ , i], driver = dri[ , , i], mediator = med, annotation = ann, covar = addcovar2)$lod
-  med_lod_drop[i] <- mediation_scan(hotspot_expr_mat[ , i], driver = dri, mediator = med, annotation = ann, covar = addcovar2)$lod
+  out[[i]] <- mediation_scan(hotspot_expr_mat[ , i], driver = dri, mediator = med, annotation = ann, covar = addcovar2)
 }
-meds <- tibble(local_gene_id = hnf4a_id, nonlocal_gene_id = colnames(hotspot_expr)[-140], med_lod_drop)
+med_lod_drop <- purrr::map_dbl(out, function(x)x$lod)
+target_fit <- purrr::map_dbl(out, function(x)attributes(x)$targetFit)
+(meds <- tibble(local_gene_id = hnf4a_id, nonlocal_gene_id = colnames(hotspot_expr)[-140], med_lod_drop, target_fit))
 ```
 
 
