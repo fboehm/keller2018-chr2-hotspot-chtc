@@ -288,7 +288,7 @@ indices <- local_peaks %>%
 ```
 
 ```{r}
-dri21 <- dri <- genoprobs[[2]][rownames(genoprobs[[2]]) %in% hotspot_expr$mouse_id, , indices]
+dri21 <- genoprobs[[2]][rownames(genoprobs[[2]]) %in% hotspot_expr$mouse_id, , indices]
 cbind(dimnames(dri21)[[3]], 
 indices)
 ```
@@ -306,7 +306,7 @@ out21 <- list()
 foo <- list()
 for (j in 1:21){
   for (i in 1:139){
-   foo[[i]]<- fit1_ll(driver = dri[ , , j],
+   foo[[i]]<- fit1_ll(driver = dri21[ , , j],
          target = hotspot_expr_mat[ , i], 
          mediator = med21[ , j], 
          addcovar = addcovar2)
@@ -484,5 +484,22 @@ for (i in 1:139){
                   segment.color = 'grey50') + facet_wrap(~ method, scales = "free", ncol = 1) 
     ggsave(file.path("figures", paste0(bar$nonlocal_gene_symbol[1] , "-pvl-med.png")))
   }  
+```
+
+## How many nonlocal genes have Hnf4a as the strongest mediator?
+
+
+```{r}
+m2_out %>% 
+  left_join(res) %>%
+  left_join(local2) %>%
+  group_by(nonlocal_gene_symbol) %>%
+  filter(lod_drop == max(lod_drop)) %>%
+  ungroup() %>%
+  select(local_gene_symbol) %>%
+  table()
+
+  
+
 ```
 
