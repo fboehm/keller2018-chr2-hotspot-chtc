@@ -37,7 +37,7 @@ readRDS("data/addcovar.rds") -> covar
 
 # remove subjects with missing data
 
-id2keep <- local$mouse_id
+id2keep <- rownames(local)
 gg <- geno[[1]]
 gg2 <- gg[rownames(gg) %in% id2keep, , ]
 kk <- kinship[[1]]
