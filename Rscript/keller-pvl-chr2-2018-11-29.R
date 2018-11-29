@@ -47,7 +47,7 @@ cc2 <- covar[rownames(covar) %in% id2keep, ]
 
 # create matrix of two expression traits
 pheno <- cbind(local[ , local_indic, drop = FALSE], hotspot[ , hot_indic, drop = FALSE])
-rownames(pheno) <- local$mouse_id
+rownames(pheno) <- rownames(local)
 # verify that names match in all objects
 sum(rownames(pheno) == rownames(gg2))
 sum(rownames(pheno) == rownames(kk2))
