@@ -53,7 +53,7 @@ sum(rownames(pheno) == rownames(gg2))
 sum(rownames(pheno) == rownames(kk2))
 sum(rownames(pheno) == colnames(kk2))
 sum(rownames(pheno) == rownames(cc2))
-phenames <- c(colnames(local2)[local_indic], colnames(hotspot)[hot_indic])
+phenames <- c(colnames(local)[local_indic], colnames(hotspot)[hot_indic])
 # two-dimensional scan
 
 library(qtl2pleio)
