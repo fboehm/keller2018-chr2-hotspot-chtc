@@ -1,5 +1,5 @@
 ---
-title: "Comparing LRT for pleiotropy v separate QTL against LOD drop in mediation analyses"
+title: "Comparing LRT for pleiotropy v separate QTL against LOD diff in mediation analyses"
 author: "Frederick Boehm"
 date: "`r lubridate::now()`"
 output: 
@@ -163,7 +163,7 @@ for (i in 1:ncol(hotspot_expr_mat)){
   out[[i]] <- fit1_med(hotspot_expr_mat[ , i], driver = dri, mediator = unlist(med), addcovar = addcovar2)
 }
 myt <- bind_rows(out) %>%
-  mutate(lod_no_mediator_models = ll_d - ll_1, lod_mediator_models = ll_dm - ll_1m) %>%
+  mutate(lod_no_mediator_models = (ll_d - ll_1) / log(10), lod_mediator_models = (ll_dm - ll_1m) / log(10)) %>%
   mutate(lod_diff = lod_no_mediator_models - lod_mediator_models, proportion_lod_diff = lod_diff / lod_no_mediator_models) %>%
   mutate(local_gene_id = hnf4a_id, nonlocal_gene_id = colnames(hotspot_expr)[-140]) %>%
   left_join(dataset.islet.rnaseq$annots, by = c("nonlocal_gene_id" = "gene_id")) %>%
@@ -185,112 +185,7 @@ myt %>%
 sum(myt$lod_diff > 1.5)
 ```
 
-## Mediation analyses without `intermediate`
 
-First, we define functions.
-
-```{r}
-calc_loglik_lm <- function(residuals){
-  sum(residuals ^ 2) -> rss
-  ll <- - length(residuals) * log(rss) / 2
-  return(ll)
-}
-
-fit1_lm <- function(driver,
-                     target,
-                     mediator,
-                     addcovar = NULL
-){
-  ll_d <- calc_loglik_lm(lm(target ~ -1 + driver + addcovar)$residuals)
-  ll_dm <- calc_loglik_lm(lm(target ~ -1 + driver + mediator + addcovar)$residuals)
-  ll_1 <- calc_loglik_lm(lm(target ~ -1 + addcovar)$residuals)
-  ll_1m <- calc_loglik_lm(lm(target ~ -1 + mediator + addcovar)$residuals)
-  out <- tibble::tibble(ll_d, ll_dm, ll_1, ll_1m)
-  return(out)
-}
-
-
-fit1_ll <- function(driver,
-                     target,
-                     mediator,
-                     addcovar = NULL
-){
-  ll_d <- logLik(lm(target ~ -1 + driver + addcovar))
-  ll_dm <- logLik(lm(target ~ -1 + driver + mediator + addcovar))
-  ll_1 <- logLik(lm(target ~ -1 + addcovar))
-  ll_1m <- logLik(lm(target ~ -1 + mediator + addcovar))
-  out <- tibble::tibble(ll_d, ll_dm, ll_1, ll_1m)
-  return(out)
-}
-
-fit1_med_qtl2 <- function(driver,
-                     target,
-                     mediator,
-                     addcovar = NULL,
-                     kinship = NULL
-){
-  lod_no_med <- qtl2::fit1(genoprobs = driver, 
-                           pheno = target, 
-                           kinship = kinship, 
-                           addcovar = addcovar
-                           )$lod
-  lod_med <- qtl2::fit1(genoprobs = driver, 
-                        pheno = target, 
-                        kinship = kinship, 
-                        addcovar = cbind(addcovar, mediator)
-                        )$lod
-  
-  out <- tibble::tibble(lod_no_med, lod_med)
-  return(out)
-}
-```
-
-Now, let's use the two functions, without using kinship objects, to get "proportion LOD drop" and "LOD drop".
-
-```{r}
-fit1_ll(driver = dri,
-         target = hotspot_expr_mat[ , 1], 
-         mediator = unlist(med), 
-         addcovar = addcovar2) %>%
-  mutate(lod_without_med = (ll_d - ll_1) / log(10), lod_with_med = (ll_dm - ll_1m) / log(10), lod_drop = lod_without_med - lod_with_med, lod_drop_proportion = lod_drop / lod_without_med)
-```
-```{r}
-fit1_lm(driver = dri,
-         target = hotspot_expr_mat[ , 1], 
-         mediator = unlist(med), 
-         addcovar = addcovar2) %>%
-  mutate(lod_without_med = (ll_d - ll_1) / log(10), lod_with_med = (ll_dm - ll_1m) / log(10), lod_drop = lod_without_med - lod_with_med, lod_drop_proportion = lod_drop / lod_without_med)
-```
-
-
-
-
-```{r}
-fit1_med_qtl2(driver = dri,
-         target = hotspot_expr_mat[ , 1], 
-         mediator = unlist(med), 
-         addcovar = addcovar2) %>%
-  mutate(lod_drop = lod_no_med - lod_med, lod_drop_proportion = lod_drop / lod_no_med)
-```
-
-I see that there's a slight discrepancy between the two results. I'm concerned that the function that uses `logLik`, ie, the function `fit1_med` is doing something, and I can't quite tell what exactly it does... since I don't know how exactly to see the code for `stats::logLik.lm`.
-
-I then tried to see if the function `fitDefault` from `intermediate` gives the same answers as my `fit1_med_qtl2`. The answer is yes.
-
-Now, let's do the regressions for each column in `hotspot_expr_mat`. 
-
-```{r}
-out <- list()
-for (i in 1:139){
-  out[[i]] <- fit1_ll(driver = dri,
-         target = hotspot_expr_mat[ , i], 
-         mediator = unlist(med), 
-         addcovar = addcovar2)
-}
-med_hnf4a_out <- out %>%
-  bind_rows() %>%
-  mutate(lod_without_med = (ll_d - ll_1) / log(10), lod_with_med = (ll_dm - ll_1m) / log(10), lod_drop = lod_without_med - lod_with_med, lod_drop_proportion = lod_drop / lod_without_med, nonlocal_gene_id = colnames(hotspot_expr_mat), local_gene_id = hnf4a_id)
-```
 
 ## Set up mediation analyses for all 21 local genes
 
@@ -322,7 +217,7 @@ out21 <- list()
 foo <- list()
 for (j in 1:21){
   for (i in 1:139){
-   foo[[i]]<- fit1_ll(driver = dri21[ , , j],
+   foo[[i]]<- fit1_med(driver = dri21[ , , j],
          target = hotspot_expr_mat[ , i], 
          mediator = med21[ , j], 
          addcovar = addcovar2)
@@ -338,7 +233,7 @@ m2_out <- med_out %>%
   bind_rows() %>%
   as_tibble() %>%
   mutate(local_gene_id = rep(colnames(med21), each = 139), nonlocal_gene_id = rep(colnames(hotspot_expr_mat), times = 21)) %>%
-  mutate(lod_without_med = (ll_d - ll_1) / log(10), lod_with_med = (ll_dm - ll_1m) / log(10), lod_drop = lod_without_med - lod_with_med, lod_drop_proportion = lod_drop / lod_without_med)
+  mutate(lod_without_med = (ll_d - ll_1) / log(10), lod_with_med = (ll_dm - ll_1m) / log(10), lod_diff = lod_without_med - lod_with_med, lod_diff_proportion = lod_diff / lod_without_med)
 
 ```
 
@@ -416,40 +311,126 @@ library(plotly)
 ```
     
 ```{r}
-pp <- med_hnf4a_out %>% 
-  left_join(res2001) %>%
-  ggplot() + aes(x = lrt, y = lod_drop, colour = nonlocal_gene_symbol) + geom_point() + theme(legend.position="none")
+myt2 <- m2_out %>% 
+  left_join(res2001) 
+pp <- myt2 %>%
+  ggplot() + aes(x = lrt, y = lod_diff, colour = nonlocal_gene_symbol) + geom_point() + theme(legend.position="none")
 ggplotly(pp, tooltip = c("colour", "x", "y")) 
 ```
 
 
 ```{r}
-pp <- med_hnf4a_out %>% 
-  left_join(res2001) %>%
-  ggplot() + aes(x = lrt, y = lod_drop_proportion, colour = nonlocal_gene_symbol) + geom_point() + theme(legend.position="none")
+pp <- myt2 %>%
+  ggplot() + aes(x = lrt, y = lod_diff_proportion, colour = nonlocal_gene_symbol) + geom_point() + theme(legend.position="none")
 ggplotly(pp, tooltip = c("colour", "x", "y")) 
 
 ```
+
+## Get LRTs for pleiotropy v separate QTL for all 21 local genes
+
+### run 2002: tabulating lrt statistics
+
+```{r}
+dir(path = "../results/pvl-run2002/", pattern = "*.txt") -> fns
+lrt <- numeric()
+i <- 1
+for (fn in fns){
+    read.table(file.path("../results/pvl-run2002/", fn)) -> scan_out
+    qtl2pleio::calc_lrt_tib(scan_out) -> lrt[i]
+    i <- i + 1
+}
+tibble::tibble(fns, lrt) -> r2002
+```
+
+```{r}
+res2002 <- r2002 %>%
+  select(fns) %>%
+  unlist() %>%
+  str_split_fixed(pattern = "_", n = 4) %>%
+  as_tibble() %>%
+  rename(run = V1, job = V2, local_gene_id = V3, nonlocal_gene_id = V4) %>%
+  mutate(job = as.numeric(job)) %>%
+  mutate(nonlocal_gene_id = str_remove(nonlocal_gene_id, pattern = ".txt")) %>%
+  mutate(lrt = r2002$lrt) %>%
+  arrange(desc(lrt)) %>%
+  left_join(rna_annot, by = c("nonlocal_gene_id" = "gene_id")) %>%
+  rename(nonlocal_gene_symbol = symbol) %>%
+  left_join(rna_annot, by = c("local_gene_id" = "gene_id")) %>%
+  rename(local_gene_symbol = symbol)
+
+```
+
+
+We then combine `res2001` and `res2002`.
+
+```{r}
+res <- bind_rows(res2001, res2002)
+```
+
+
 
 ## Work with all 2919 test statistics & mediation analyses
 
+
 ```{r}
-pp2 <- m2_out %>% 
-  left_join(res) %>%
-  ggplot() + aes(x = lrt, y = lod_drop_proportion, colour = local_gene_symbol) + geom_point() + theme(legend.position="none")
-ggplotly(pp2, tooltip = c("colour", "x", "y")) 
+myt3 <- m2_out %>% 
+  left_join(res) 
+
+pp <- myt3 %>%
+  ggplot() + aes(x = lrt, y = lod_drop_proportion * (lod_diff_proportion > 0), colour = local_gene_symbol) + geom_point(size = 1 / 4) + theme(legend.position="none")
+ggplotly(pp, tooltip = c("colour", "x", "y")) 
   
 ```
 
+## Repeat above plot, but with only 139 pairs involving *Hnf4a*
+
+```{r}
+pp <- myt3 %>%
+  filter(local_gene_symbol == "Hnf4a") %>%
+  ggplot() + aes(x = lrt, y = lod_diff_proportion * (lod_diff_proportion > 0), colour = local_gene_symbol, alpha = nonlocal_gene_symbol) + geom_point(size = 1 / 4) + theme(legend.position="none")
+ggplotly(pp, tooltip = c("colour", "alpha", "x", "y")) 
+```
+
+
+
 
 ```{r}
 pp2 <- m2_out %>% 
   left_join(res) %>%
-  filter(local_gene_symbol %in% c("Hnf4a", "Ptgis")) %>%
-  ggplot() + aes(x = lrt, y = lod_drop_proportion, colour = nonlocal_gene_symbol) + geom_point() + theme(legend.position="none") + facet_wrap(~ local_gene_symbol, ncol = 1)
+  ggplot() + aes(x = lrt, y = lod_diff_proportion, colour = nonlocal_gene_symbol) + geom_point(size = 1 / 4) + theme(legend.position="none") + facet_wrap(~ local_gene_symbol, ncol = 3)
 ggplotly(pp2, tooltip = c("colour", "x", "y")) 
 ```
-Note that Gpr20 has a high LRT for pleiotropy v separate QTL with Hnf4a, yet it has a small LRT when paired with Ptgis. In both cases, the proportion drop in LOD is very small. 
+
+```{r}
+myt4 <- m2_out %>% 
+  left_join(res) 
+myt4$local_gene_symbol_factor <- factor(myt4$local_gene_symbol, levels = unique(myt4$local_gene_symbol))
+(levels(myt4$local_gene_symbol_factor) -> foo)
+levels(myt4$local_gene_symbol_factor) <- foo[c(16, 1:15, 17:21)]
+myt4 %>%
+  ggplot() + aes(x = lrt, y = lod_diff_proportion, colour = nonlocal_gene_symbol) + geom_point(size = 1 / 4) + theme(legend.position="none") + facet_wrap(~ local_gene_symbol_factor, ncol = 3) + xlab("Pleiotropy vs. separate QTL test statistic") + ylab("Proportion LOD difference")
+ggsave(filename = "3A-21-local-lrt-v-lod_diff_proportion.jpg", width = 9, height = 6.5, units = "in")
+ggsave(filename = "3A-21-local-lrt-v-lod_diff_proportion.eps", width = 9, height = 6.5, units = "in")
+ggsave(filename = "3A-21-local-lrt-v-lod_diff_proportion.png", width = 9, height = 6.5, units = "in")
+ggsave(filename = "3A-21-local-lrt-v-lod_diff_proportion.svg", width = 9, height = 6.5, units = "in")
+
+ggplotly(pp2, tooltip = c("colour", "x", "y")) 
+```
+
+Now, a figure with truncated lod diff proportion values.
+
+```{r}
+myt4 %>%
+  mutate(lod_diff_proportion_trunc = lod_diff_proportion * (lod_diff_proportion > 0)) %>%
+  ggplot() + aes(x = lrt, y = lod_diff_proportion_trunc, colour = nonlocal_gene_symbol) + geom_point(size = 1 / 4) + theme(legend.position="none") + facet_wrap(~ local_gene_symbol_factor, ncol = 3) + xlab("Pleiotropy vs. separate QTL test statistic") + ylab("Proportion LOD difference")
+ggsave(filename = "3A-21-local-lrt-v-lod_diff_proportion-trunc.jpg", width = 9, height = 6.5, units = "in")
+```
+
+
+
+
+
+Note that Gpr20 has a high LRT for pleiotropy v separate QTL with Hnf4a, yet it has a small LRT when paired with Ptgis. In both cases, the proportion diff in LOD is very small. 
 
 Let's look at the table of results that involve Gpr20
 
@@ -457,7 +438,7 @@ Let's look at the table of results that involve Gpr20
 m2_out %>% 
   left_join(res) %>%
   filter(nonlocal_gene_symbol == "Gpr20") %>%
-  arrange(desc(lod_drop_proportion))
+  arrange(desc(lod_diff_proportion))
 ```
 It looks like Gpr20 has small LOD scores for most loci examined here.
 
@@ -469,16 +450,27 @@ gpr20_out <- m2_out %>%
 ```
 
 ```{r}
+symbols <- dataset.islet.rnaseq$annots %>%
+  as_tibble() %>%
+  select(gene_id, symbol)
 local2 <- local_peaks %>%
   as_tibble() %>%
+  left_join(symbols, by = c("lodcolumn" = "gene_id")) %>%
   rename(local_gene_lod = lod, local_gene_id = lodcolumn)
-local2 %>%
+# Get position of Gpr20's peak on chr2
+Gpr20_pos <- dataset.islet.rnaseq$lod.peaks %>%
+  as_tibble() %>%
+  filter(chrom == 2) %>%
+  filter(annot.id == symbols$gene_id[which(symbols$symbol == "Gpr20")]) %>%
+  select(pos) %>% unlist()
+
+
+pp <- local2 %>%
   left_join(gpr20_out) %>%
-  tidyr::gather(lod_drop_proportion, lrt, key = "method", value = "test_stat") %>%
-  ggplot() + geom_point(aes(x = pos, y = test_stat, colour = method)) + facet_wrap(~method, ncol = 1, scales="free") 
+  tidyr::gather(lod_diff_proportion, lrt, key = "method", value = "test_stat") %>%
+  ggplot() + geom_point(aes(x = pos, y = test_stat, colour = local_gene_symbol)) + facet_wrap(~method, ncol = 1, scales="free") + geom_vline(xintercept = Gpr20_pos)
 # add vertical line for nonlocal gene's univariate QTL peak?   
-  
-  
+ggplotly(pp, tooltip = c("colour", "x", "y"))  
 ```
 
 ```{r}
@@ -486,21 +478,6 @@ library(ggrepel)
 ```
 
 
-
-```{r}
-for (i in 1:139){
-  bar <- m2_out %>% 
-    left_join(res) %>%
-    left_join(local2) %>%
-    filter(nonlocal_gene_id == colnames(hotspot_expr_mat)[i]) %>%
-    tidyr::gather(lod_drop, lrt, key = "method", value = "test_stat")
-    ggplot(bar) + geom_point(aes(x = pos, y = test_stat, colour = method)) + geom_label_repel(aes(x = pos, y = test_stat, label = local_gene_symbol),
-                  box.padding   = 0.35, 
-                  point.padding = 0.5,
-                  segment.color = 'grey50') + facet_wrap(~ method, scales = "free", ncol = 1) 
-    ggsave(file.path("figures", paste0(bar$nonlocal_gene_symbol[1] , "-pvl-med.png")))
-  }  
-```
 
 ## How many nonlocal genes have Hnf4a as the strongest mediator?
 
@@ -510,13 +487,10 @@ m2_out %>%
   left_join(res) %>%
   left_join(local2) %>%
   group_by(nonlocal_gene_symbol) %>%
-  filter(lod_drop == max(lod_drop)) %>%
+  filter(lod_diff == max(lod_diff)) %>%
   ungroup() %>%
   select(local_gene_symbol) %>%
   table()
-
-  
-
 ```
 
 

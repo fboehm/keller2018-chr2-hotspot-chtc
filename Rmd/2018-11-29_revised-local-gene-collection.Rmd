@@ -1,0 +1,78 @@
+---
+title: "Figures for 3A"
+author: "Frederick Boehm"
+date: "11/29/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+First, we load the Keller 2018 data.
+
+```{r}
+load("../data-to-ignore/Attie_DO378_eQTL_viewer_v1.Rdata")
+readRDS("../data/hotspot_expr_tib2_keller_chr2.rds") -> hotspot_expr
+readRDS("../data/keller2018-chr2-local-expr.rds") -> local_expr
+```
+
+```{r}
+names_21 <- colnames(local_expr)[-22]
+```
+
+We isolate the names of the 21 local genes that we've been studying in 3A. 
+
+Now, let's recreate the `local_expr` object from the Attie file's data.
+
+```{r}
+d1 <- dataset.islet.rnaseq$lod.peaks %>%
+  as_tibble() %>%
+  filter(chrom == 2) %>%
+  left_join(dataset.islet.rnaseq$annots, by = c("annot.id" = "gene_id")) %>%
+  filter(lod > 40) %>%
+  filter(middle > 165.5 - 5, middle < 165.5 + 5, pos > 165.5 - 5, pos < 165.5 + 5) 
+```
+
+In examining the Rmd file "2018-09-10_condor-setup.Rmd" we see the object `trait_names` is defined and it's the genes in `trait_names` that are used in our previous analyses.
+
+I wish to amend this list of genes. First, there are three of 21 genes that are way too far from the hotspot to be useful. Second, I want criteria that are easier to explain. 
+
+We'll use the criteria that we wrote above to define d1. Note that it has 19 genes. 
+
+So, 
+
+1. LOD > 40
+2. middle within 5 Mb of hotspot center (165.5)
+3. QTL peak within 5 Mb of hotspot center (165.5)
+
+Now, let's isolate the genes that are in d1 but not in names_21.
+
+```{r}
+d1$annot.id
+d1$annot.id[!(d1$annot.id %in% names_21)]
+```
+
+We see that two traits are not in `names_21`. 
+
+Let's get the expression data for these two and save it as a RDS file.
+
+```{r}
+dataset.islet.rnaseq$expr[ , colnames(dataset.islet.rnaseq$expr) %in% d1$annot.id[!(d1$annot.id %in% names_21)]] %>%
+  saveRDS(file = "../data/keller2018-chr2-local-expr-2-2018-11-29.rds")
+```
+
+
+
+
+## Session info
+
+```{r}
+devtools::session_info()
+```
+
+
