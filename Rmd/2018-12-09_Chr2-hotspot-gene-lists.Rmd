@@ -1,0 +1,66 @@
+---
+title: "Identifying Chr 2 hotspot genes without 2d scans"
+author: "Frederick Boehm"
+date: "12/9/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Our goal is to identify genes that 1) map to Chr 2 hotspot in the Keller 2018 data and 2) weren't included in my earlier 2-dimensional scans.
+
+First, we load the csv file (which I created with code in the file "2018-12-05_FileS2Attie_eQTL_paper_eQTL_hotspots.Rmd") that contains the names of the 147 genes that meet the criteria for mapping to Chr 2 hotspot.
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+read_csv("chr2_hotspot_genes.csv") -> gatti_chr2
+```
+
+We see that the genes are identified by gene symbol in the object `gatti_chr2`.
+
+Now, read the rds file that contains the genes that I've analyzed previously.
+
+```{r}
+hot_expr <- readRDS("../data/hotspot_expr_tib2_keller_chr2.rds")
+colnames(hot_expr)[-140] -> genes_139
+```
+
+One question I've had is: Why did I fail to analyze some Chr2 hotspot genes in my earlier analysis? 
+
+The answer: because some of them are not annotated as chr2 hotspot genes.
+
+We see this by tabulating the hotspot variable in `gatti_chr2`:
+
+```{r}
+table(gatti_chr2$hotspot)
+```
+
+Let's subset the dataframe to only those genes that have hotspot == chr5 or chr7.
+
+```{r}
+gatti_chr2 %>%
+  filter(hotspot == "chr5" | hotspot == "chr7")
+gatti_chr2a <- dataset.islet.rnaseq$annots %>%
+  select(gene_id, symbol) %>%
+  right_join(gatti_chr2) %>%
+  filter(hotspot == "chr5" | hotspot == "chr7")
+```
+
+
+## Make the expression data frame for the 'missing' genes
+
+We now need to prepare an expression dataframe for the 8 "missing" genes.
+
+```{r}
+expr_8 <- dataset.islet.rnaseq$expr[ , colnames(dataset.islet.rnaseq$expr) %in% gatti_chr2a$gene_id]
+```
+
+```{r}
+saveRDS(expr_8, file = "../data/hotspot-chr2-8missing-genes.rds")
+```
+
