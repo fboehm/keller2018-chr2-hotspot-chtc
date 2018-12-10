@@ -75,6 +75,8 @@ local_expr13 <- dataset.islet.rnaseq$expr[ , colnames(dataset.islet.rnaseq$expr)
 saveRDS(local_expr13, file = "../data/local_expr13.rds")
 ```
 
+Note that these 13 genes are the local genes that will go into the final analyses for 3A.
+
 
 
 ## Session info
