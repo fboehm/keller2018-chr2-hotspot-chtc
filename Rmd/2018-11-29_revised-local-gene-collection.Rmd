@@ -35,7 +35,7 @@ d1 <- dataset.islet.rnaseq$lod.peaks %>%
   filter(chrom == 2) %>%
   left_join(dataset.islet.rnaseq$annots, by = c("annot.id" = "gene_id")) %>%
   filter(lod > 40) %>%
-  filter(middle > 165.5 - 5, middle < 165.5 + 5, pos > 165.5 - 5, pos < 165.5 + 5) 
+  filter(middle > 165.5 - 2, middle < 165.5 + 2, pos > 165.5 - 2, pos < 165.5 + 2) 
 ```
 
 In examining the Rmd file "2018-09-10_condor-setup.Rmd" we see the object `trait_names` is defined and it's the genes in `trait_names` that are used in our previous analyses.
@@ -66,6 +66,14 @@ dataset.islet.rnaseq$expr[ , colnames(dataset.islet.rnaseq$expr) %in% d1$annot.i
   saveRDS(file = "../data/keller2018-chr2-local-expr-2-2018-11-29.rds")
 ```
 
+## Update on Dec 9, 2018
+
+We need to analyze an extra 8 trans genes. To facilitate this, I'll create a "local" genes expression file for use with Condor.
+
+```{r}
+local_expr13 <- dataset.islet.rnaseq$expr[ , colnames(dataset.islet.rnaseq$expr) %in% d1$annot.id]
+saveRDS(local_expr13, file = "../data/local_expr13.rds")
+```
 
 
 

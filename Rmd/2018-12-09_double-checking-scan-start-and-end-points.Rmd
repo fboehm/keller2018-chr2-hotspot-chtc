@@ -1,0 +1,35 @@
+---
+title: "Double-checking 2d scan start and end points"
+author: "Frederick Boehm"
+date: "12/9/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+My previous scans for Chapter 3A used the start and end points: 3770 and 3949, per the submit files. 
+
+This is potentially problematic when the univariate QTL peaks - for both members of a pairwise analysis - are not in this span. 
+
+First, let's see where on Chromosome 2 these markers are.
+
+
+To do that, load the Attie data from Data Dryad and look at its map object.
+
+```{r}
+load("../data-to-ignore/Attie_DO378_eQTL_viewer_v1.Rdata")
+```
+
+```{r}
+map$`2`[c(3770, 3949)]
+
+```
+
+Ok, so this interval definitely covers the peak positions for the 147 trans traits. We really should re-define our set of local genes so that only those that are between 163.5 and 167.5 are considered. Here, the quantity of interest is univariate peak position, which needs to be between 163.5 and 167.5. We also want middle of the gene to be between 163.5 and 167.5. I made these changes and created a file "data/local_expr13.rds" for use on Condor.
+
+
+
+
+
