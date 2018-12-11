@@ -1,0 +1,552 @@
+---
+title: "Comparing LRT for pleiotropy v separate QTL against LOD diff in mediation analyses"
+author: "Frederick Boehm"
+date: "`r lubridate::now()`"
+output: 
+  github_document:
+    toc: true
+    toc_depth: 2
+---
+
+Our goal here is to examine the relationships between pleiotropy v separate QTL analyses and mediation analyses. We study with these methods the chromosome 2 hotspot in the Keller et al 2018 pancreatic islet expression data.
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+First, we load the Keller 2018 data.
+
+```{r}
+load("../data-to-ignore/Attie_DO378_eQTL_viewer_v1.Rdata")
+readRDS("../data/hotspot_expr_tib2_keller_chr2.rds") -> hot139
+readRDS("../data/hotspot-chr2-8missing-genes.rds") -> hot8
+readRDS("../data/local_expr13.rds") -> local13
+cbind(hot8, as.matrix(hot139[, -140])) -> hot
+```
+
+We now have a 378 by 13 matrix of local expression values, ie, with the updated collection of local genes.
+
+We next need the scan1 outputs for these traits.
+
+```{r}
+library(qtl2)
+```
+
+
+
+```{r}
+# define addcovar 
+addcovar <- dataset.islet.rnaseq$covar
+# scan1 calls
+if(!file.exists("../data/s1_local.rds")){
+  scan1(genoprobs = genoprobs, pheno = local13, kinship = K, addcovar = addcovar, reml = TRUE, cores = 6
+        ) -> s1_local
+  saveRDS(s1_local, file = "../data/s1_local.rds")
+}
+
+if(!file.exists("../data/s1_hotspot.rds")){
+  scan1(genoprobs = genoprobs, pheno = hot, kinship = K, addcovar = addcovar, reml = TRUE, cores = 6
+        ) -> s1_hotspot
+  saveRDS(s1_hotspot, "../data/s1_hotspot.rds")
+}
+```
+
+
+
+
+
+```{r}
+# what is the ENSEMBL id for Hnf4a?
+hnf4a_id <- "ENSMUSG00000017950"
+```
+
+We still need to define the driver for input to `intermediate::mediation_scan`.
+
+
+## Load scan1() outputs for hotspot (ie, trans) traits
+
+We saved the scan1 outputs, because they take some time to re-run.
+
+```{r}
+s1_local <- readRDS("../data/s1_local.rds")
+s1_hotspot <- readRDS("../data/s1_hotspot.rds")
+```
+
+## Find QTL peaks
+
+We now search the outputs of `scan1` to identify peaks:
+
+```{r}
+# for local genes, we above defined those of interest to have 
+# peak > 40, so we use 40 here as threshold
+find_peaks(s1_local, map = map, threshold = 40) -> local_peaks
+find_peaks(s1_hotspot, map = map) -> hotspot_peaks
+```
+
+```{r}
+map_chr2_tib <- tibble(pos = map$`2`, index = 1:length(map$`2`))
+hnf4a_peak_position <- local_peaks %>%
+  filter(lodcolumn == hnf4a_id) %>% 
+  left_join(map_chr2_tib, by = "pos") %>%
+  select(index) %>% 
+  unlist() %>%
+  as.numeric()
+```
+
+
+
+Let's subset the driver and the covariates:
+
+```{r}
+addcovar2 <- addcovar[rownames(addcovar) %in% rownames(hot), ]
+```
+
+
+
+
+```{r}
+rna_annot <- dataset.islet.rnaseq$annots %>%
+  as_tibble() %>%
+  select(gene_id, symbol)
+```
+
+
+## Set up mediation analyses for all 13 local genes
+
+First, we want to set up the `dri21` driver object. To do that, we need to know the peak positions for each local trait.
+
+```{r}
+library(intermediate) # from github, fboehm/intermediate
+```
+
+
+
+```{r}
+indices <- local_peaks %>%
+  left_join(map_chr2_tib) %>%
+  select(index) %>%
+  unlist()
+```
+
+```{r}
+dri21 <- genoprobs$`2`[rownames(genoprobs$`2`) %in% rownames(hot), , indices]
+cbind(dimnames(dri21)[[3]], 
+indices)
+```
+```{r}
+med21 <- local13[ , colnames(local13) %in% local_peaks$lodcolumn]
+med21 %>% colnames()
+```
+
+
+
+
+
+```{r}
+out21 <- list()
+foo <- list()
+for (j in 1:13){
+  for (i in 1:147){
+   foo[[i]]<- fit1_med(driver = dri21[ , , j],
+         target = hot[ , i], 
+         mediator = med21[ , j], 
+         addcovar = addcovar2)
+  }
+  out21[[j]] <- foo
+}
+```
+
+```{r}
+med_out <- out21 %>%
+  purrr::map(bind_rows)
+m2_out <- med_out %>%
+  bind_rows() %>%
+  as_tibble() %>%
+  mutate(local_gene_id = rep(colnames(med21), each = 147), nonlocal_gene_id = rep(colnames(hot), times = 13)) %>%
+  mutate(lod_without_med = (ll_d - ll_1) / log(10), lod_with_med = (ll_dm - ll_1m) / log(10), lod_diff = lod_without_med - lod_with_med, lod_diff_proportion = lod_diff / lod_without_med)
+
+```
+
+
+
+
+
+## Tabulating the pleiotropy v separate QTL LRT statistics
+
+Our goal is to analyze the results of pvl scan results files from CHTC.
+
+```{r}
+library(qtl2chtc)
+```
+
+```{r}
+dir(path = "../results/pvl-run2001/", pattern = "*.txt") -> fns
+  lrt <- numeric()
+  i <- 1
+  for (fn in fns){
+    read.table(file.path("../results/pvl-run2001/", fn)) -> scan_out
+    qtl2pleio::calc_lrt_tib(scan_out) -> lrt[i]
+    i <- i + 1
+  }
+tibble::tibble(fns, lrt) -> r2001
+```
+
+
+Let's parse the file names in `r2001` into meaningful fields, like gene names.
+
+```{r}
+library(stringr)
+```
+
+```{r}
+splitted <- r2001$fns %>% 
+  str_split(pattern = "_") 
+
+my_split <- function(string_vec, pattern = ".txt"){
+  foo <- str_split(string_vec, pattern)
+  sapply(FUN = function(x)x[1], X = foo)
+}
+res2001 <- sapply(FUN = function(x)x[1:4], X = splitted) %>% 
+  t() %>%
+  as_tibble() %>%
+  rename(run_num = V1, job_num = V2, local_gene_id = V3) %>%
+  mutate(nonlocal_gene_id = my_split(V4)) %>%
+  select(- V4) %>%
+  mutate(lrt = r2001$lrt) %>%
+  arrange(desc(lrt)) %>%
+  left_join(rna_annot, by = c("nonlocal_gene_id" = "gene_id")) %>%
+  rename(nonlocal_gene_symbol = symbol) %>%
+  left_join(rna_annot, by = c("local_gene_id" = "gene_id")) %>%
+  rename(local_gene_symbol = symbol)
+```
+
+
+```{r}
+hist(res2001$lrt)
+```
+
+```{r}
+sum(res2001$lrt > 4)
+```
+
+
+
+## Join pleiotropy v separate QTL LRT tibble with LOD drops tibble
+
+```{r}
+library(plotly)
+```
+    
+```{r}
+myt2 <- m2_out %>% 
+  left_join(res2001) 
+pp <- myt2 %>%
+  ggplot() + aes(x = lrt, y = lod_diff, colour = nonlocal_gene_symbol) + geom_point() + theme(legend.position="none")
+ggplotly(pp, tooltip = c("colour", "x", "y")) 
+```
+
+
+```{r}
+pp <- myt2 %>%
+  ggplot() + aes(x = lrt, y = lod_diff_proportion, colour = nonlocal_gene_symbol) + geom_point() + theme(legend.position="none")
+ggplotly(pp, tooltip = c("colour", "x", "y")) 
+
+```
+
+## Get LRTs for pleiotropy v separate QTL for all 13 local genes
+
+### run 2002: tabulating lrt statistics
+
+```{r}
+dir(path = "../results/pvl-run2002/", pattern = "*.txt") -> fns
+lrt <- numeric()
+i <- 1
+for (fn in fns){
+    read.table(file.path("../results/pvl-run2002/", fn)) -> scan_out
+    qtl2pleio::calc_lrt_tib(scan_out) -> lrt[i]
+    i <- i + 1
+}
+tibble::tibble(fns, lrt) -> r2002
+```
+
+```{r}
+res2002 <- r2002 %>%
+  select(fns) %>%
+  unlist() %>%
+  str_split_fixed(pattern = "_", n = 4) %>%
+  as_tibble() %>%
+  rename(run = V1, job = V2, local_gene_id = V3, nonlocal_gene_id = V4) %>%
+  mutate(job = as.numeric(job)) %>%
+  mutate(nonlocal_gene_id = str_remove(nonlocal_gene_id, pattern = ".txt")) %>%
+  mutate(lrt = r2002$lrt) %>%
+  arrange(desc(lrt)) %>%
+  left_join(rna_annot, by = c("nonlocal_gene_id" = "gene_id")) %>%
+  rename(nonlocal_gene_symbol = symbol) %>%
+  left_join(rna_annot, by = c("local_gene_id" = "gene_id")) %>%
+  rename(local_gene_symbol = symbol)
+```
+
+### Get test statistics for run 2003
+
+```{r}
+dir(path = "../results/pvl-run2003/", pattern = "*.txt") -> fns
+lrt <- numeric()
+i <- 1
+for (fn in fns){
+    read.table(file.path("../results/pvl-run2003/", fn)) -> scan_out
+    qtl2pleio::calc_lrt_tib(scan_out) -> lrt[i]
+    i <- i + 1
+}
+tibble::tibble(fns, lrt) -> r2003
+```
+
+```{r}
+res2003 <- r2003 %>%
+  select(fns) %>%
+  unlist() %>%
+  str_split_fixed(pattern = "_", n = 4) %>%
+  as_tibble() %>%
+  rename(run = V1, job = V2, local_gene_id = V3, nonlocal_gene_id = V4) %>%
+  mutate(job = as.numeric(job)) %>%
+  mutate(nonlocal_gene_id = str_remove(nonlocal_gene_id, pattern = ".txt")) %>%
+  mutate(lrt = r2003$lrt) %>%
+  arrange(desc(lrt)) %>%
+  left_join(rna_annot, by = c("nonlocal_gene_id" = "gene_id")) %>%
+  rename(nonlocal_gene_symbol = symbol) %>%
+  left_join(rna_annot, by = c("local_gene_id" = "gene_id")) %>%
+  rename(local_gene_symbol = symbol)
+```
+
+
+
+### Get test statistics for run 2004
+
+```{r}
+dir(path = "../results/pvl-run2004/", pattern = "*.txt") -> fns
+lrt <- numeric()
+i <- 1
+for (fn in fns){
+    read.table(file.path("../results/pvl-run2004/", fn)) -> scan_out
+    qtl2pleio::calc_lrt_tib(scan_out) -> lrt[i]
+    i <- i + 1
+}
+tibble::tibble(fns, lrt) -> r2004
+```
+
+```{r}
+res2004 <- r2004 %>%
+  select(fns) %>%
+  unlist() %>%
+  str_split_fixed(pattern = "_", n = 4) %>%
+  as_tibble() %>%
+  rename(run = V1, job = V2, local_gene_id = V3, nonlocal_gene_id = V4) %>%
+  mutate(job = as.numeric(job)) %>%
+  mutate(nonlocal_gene_id = str_remove(nonlocal_gene_id, pattern = ".txt")) %>%
+  mutate(lrt = r2004$lrt) %>%
+  arrange(desc(lrt)) %>%
+  left_join(rna_annot, by = c("nonlocal_gene_id" = "gene_id")) %>%
+  rename(nonlocal_gene_symbol = symbol) %>%
+  left_join(rna_annot, by = c("local_gene_id" = "gene_id")) %>%
+  rename(local_gene_symbol = symbol)
+```
+
+
+
+
+
+We then combine `res2001`, `res2002`, `res2003`, and `res2004`.
+
+```{r}
+res <- bind_rows(res2001, res2002, res2003, res2004)
+```
+
+```{r}
+fn <- "../data/res-tibble-lrt-med.rds"
+if (!(file.exists(fn))){
+  saveRDS(res, fn)
+}
+```
+
+
+## Work with all 13 * 147 = 1911 test statistics & mediation analyses
+
+
+
+
+```{r}
+myt3 <- m2_out %>% 
+  left_join(res) 
+
+pp <- myt3 %>%
+  ggplot() + aes(x = lrt, y = lod_diff_proportion * (lod_diff_proportion > 0), colour = local_gene_symbol) + geom_point(size = 1 / 4) + broman::karl_theme() +  theme(legend.position="none") + ylab("LOD difference proportion") + xlab("Pleiotropy vs. separate QTL test statistic") + ylim(0, 1)
+ggplotly(pp, tooltip = c("colour", "x", "y")) 
+ggsave("lod-diff-prop-v-lrt.jpg")
+ggsave("lod-diff-prop-v-lrt.eps")
+ggsave("lod-diff-prop-v-lrt.svg")
+```
+
+## Repeat above plot, but with only 147 pairs involving *Hnf4a*
+
+```{r}
+pp <- myt3 %>%
+  filter(local_gene_symbol == "Hnf4a") %>%
+  ggplot() + aes(x = lrt, y = lod_diff_proportion * (lod_diff_proportion > 0), colour = local_gene_symbol) + geom_point(size = 1 / 4) + broman::karl_theme() + theme(legend.position="none") + ylab("LOD difference proportion") + xlab("Pleiotropy vs. separate QTL test statistic") + ylim(0, 1)
+ggplotly(pp, tooltip = c("colour", "x", "y")) 
+ggsave("Hnf4a-lod-diff-prop-v-lrt.jpg")
+ggsave("Hnf4a-lod-diff-prop-v-lrt.eps")
+ggsave("Hnf4a-lod-diff-prop-v-lrt.svg")
+```
+
+
+
+
+```{r}
+pp2 <- m2_out %>% 
+  left_join(res) %>%
+  filter(!(local_gene_symbol == "Hnf4a")) %>%
+  ggplot() + aes(x = lrt, y = lod_diff_proportion, colour = nonlocal_gene_symbol) + geom_point(size = 1 / 4) + broman::karl_theme() + theme(legend.position="none") + ylab("LOD difference proportion") + xlab("Pleiotropy vs. separate QTL test statistic") + ylim(0, 1) + facet_wrap(~ local_gene_symbol, ncol = 2)
+ggsave("lod-diff-prop-v-lrt-12-panels.jpg")
+ggsave("lod-diff-prop-v-lrt-12-panels.eps")
+ggsave("lod-diff-prop-v-lrt-12-panels.svg")
+
+ggplotly(pp2, tooltip = c("colour", "x", "y")) 
+```
+
+```{r}
+myt4 <- m2_out %>% 
+  left_join(res) 
+myt4$local_gene_symbol_factor <- factor(myt4$local_gene_symbol, levels = unique(myt4$local_gene_symbol))
+(levels(myt4$local_gene_symbol_factor) -> foo)
+levels(myt4$local_gene_symbol_factor) <- foo[c(16, 1:15, 17:21)]
+myt4 %>%
+  ggplot() + aes(x = lrt, y = lod_diff_proportion, colour = nonlocal_gene_symbol) + geom_point(size = 1 / 4) + theme(legend.position="none") + facet_wrap(~ local_gene_symbol_factor, ncol = 3) + xlab("Pleiotropy vs. separate QTL test statistic") + ylab("Proportion LOD difference")
+ggsave(filename = "3A-21-local-lrt-v-lod_diff_proportion.jpg", width = 9, height = 6.5, units = "in")
+ggsave(filename = "3A-21-local-lrt-v-lod_diff_proportion.eps", width = 9, height = 6.5, units = "in")
+ggsave(filename = "3A-21-local-lrt-v-lod_diff_proportion.png", width = 9, height = 6.5, units = "in")
+ggsave(filename = "3A-21-local-lrt-v-lod_diff_proportion.svg", width = 9, height = 6.5, units = "in")
+
+ggplotly(pp2, tooltip = c("colour", "x", "y")) 
+```
+
+Now, a figure with truncated lod diff proportion values.
+
+```{r}
+myt4 %>%
+  mutate(lod_diff_proportion_trunc = lod_diff_proportion * (lod_diff_proportion > 0)) %>%
+  ggplot() + aes(x = lrt, y = lod_diff_proportion_trunc, colour = nonlocal_gene_symbol) + geom_point(size = 1 / 4) + theme(legend.position="none") + facet_wrap(~ local_gene_symbol_factor, ncol = 3) + xlab("Pleiotropy vs. separate QTL test statistic") + ylab("Proportion LOD difference")
+ggsave(filename = "3A-21-local-lrt-v-lod_diff_proportion-trunc.jpg", width = 9, height = 6.5, units = "in")
+```
+
+
+
+
+
+Note that Gpr20 has a high LRT for pleiotropy v separate QTL with Hnf4a, yet it has a small LRT when paired with Ptgis. In both cases, the proportion diff in LOD is very small. 
+
+Let's look at the table of results that involve Gpr20
+
+```{r}
+m2_out %>% 
+  left_join(res) %>%
+  filter(nonlocal_gene_symbol == "Gpr20") %>%
+  arrange(desc(lod_diff_proportion))
+```
+It looks like Gpr20 has small LOD scores for most loci examined here.
+
+```{r}
+gpr20_out <- m2_out %>% 
+  left_join(res) %>%
+  filter(nonlocal_gene_symbol == "Gpr20") %>%
+  arrange(desc(lod_without_med))
+```
+
+```{r}
+symbols <- dataset.islet.rnaseq$annots %>%
+  as_tibble() %>%
+  select(gene_id, symbol)
+local2 <- local_peaks %>%
+  as_tibble() %>%
+  left_join(symbols, by = c("lodcolumn" = "gene_id")) %>%
+  rename(local_gene_lod = lod, local_gene_id = lodcolumn)
+# Get position of Gpr20's peak on chr2
+Gpr20_pos <- dataset.islet.rnaseq$lod.peaks %>%
+  as_tibble() %>%
+  filter(chrom == 2) %>%
+  filter(annot.id == symbols$gene_id[which(symbols$symbol == "Gpr20")]) %>%
+  select(pos) %>% unlist()
+
+
+pp <- local2 %>%
+  left_join(gpr20_out) %>%
+  tidyr::gather(lod_diff_proportion, lrt, key = "method", value = "test_stat") %>%
+  ggplot() + geom_point(aes(x = pos, y = test_stat, colour = local_gene_symbol)) + facet_wrap(~method, ncol = 1, scales="free") + geom_vline(xintercept = Gpr20_pos)
+# add vertical line for nonlocal gene's univariate QTL peak?   
+ggplotly(pp, tooltip = c("colour", "x", "y"))  
+```
+
+```{r}
+library(ggrepel)
+```
+
+
+
+## How many nonlocal genes have Hnf4a as the strongest mediator?
+
+
+```{r}
+m2_out %>% 
+  left_join(res) %>%
+  left_join(local2) %>%
+  group_by(nonlocal_gene_symbol) %>%
+  filter(lod_diff == max(lod_diff)) %>%
+  ungroup() %>%
+  select(local_gene_symbol) %>%
+  table()
+```
+
+## Per-nonlocal gene analyses
+
+Here, our goal is to create 147 individual plots. Each plot will have two panes, stacked vertically. The top pane is for chromosome position (of local gene's middle, x axis) and y axis is pleiotropy v separate QTL test statistic. The bottom pane is for chromosome position (of local gene's middle) and, on the y axis, LOD difference proportion.
+
+```{r}
+# first, join in the peak positions from hotspot_peaks
+hot_peaks2 <- hotspot_peaks %>%
+  filter(chr == 2)
+## for use with geom_blank()
+blank_data <- tibble(group = c("lrt", "lrt", "lod_diff_proportion", "lod_diff_proportion"), x = c(163, 168, 163, 168), y = c(0, 
+    NA, 0, 1))
+# i found this blog post for using geom_blank: https://chrischizinski.github.io/rstats/using_geom_blank/
+
+
+unique(myt4$nonlocal_gene_symbol) -> nonlocal_symbols
+for (i in (1:147)){
+  myt4 %>%
+    filter(nonlocal_gene_symbol == nonlocal_symbols[i]) %>%
+    left_join(dataset.islet.rnaseq$annots, by = c("local_gene_id" = "gene_id")) %>%
+    left_join(hot_peaks2, by = c("nonlocal_gene_id" = "lodcolumn")) %>%
+    gather(stat, value, lrt, lod_diff_proportion) %>%
+    mutate(val2 = value * (value > 0)) %>%
+    ggplot() + geom_point(aes(x = middle, y = val2)) + geom_blank(data = blank_data, aes(x = x, y = y)) + geom_vline(aes(xintercept = pos)) + broman::karl_theme() + theme(legend.position="none") + ylab("Statistic") + xlab("Chromosome 2 position") + facet_wrap(nrow = 2, facets = vars(stat), shrink = FALSE, scales = "free")
+  fn <- paste0("nonlocal_", i, "_chr2position")
+  ggsave(paste0(fn, ".jpg"))
+  ggsave(paste0(fn, ".svg"))
+  ggsave(paste0(fn, ".eps"))
+}
+```
+
+
+
+
+## Session info
+
+```{r}
+devtools::session_info()
+```
+
+
+
