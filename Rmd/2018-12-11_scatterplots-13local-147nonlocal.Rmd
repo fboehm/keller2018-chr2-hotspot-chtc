@@ -370,6 +370,7 @@ fn <- "../data/res-tibble-lrt-med.rds"
 if (!(file.exists(fn))){
   saveRDS(res, fn)
 }
+readRDS(fn) -> res
 ```
 
 
@@ -383,7 +384,7 @@ myt3 <- m2_out %>%
   left_join(res) 
 
 pp <- myt3 %>%
-  ggplot() + aes(x = lrt, y = lod_diff_proportion * (lod_diff_proportion > 0), colour = local_gene_symbol) + geom_point(size = 1 / 4) + broman::karl_theme() +  theme(legend.position="none") + ylab("LOD difference proportion") + xlab("Pleiotropy vs. separate QTL test statistic") + ylim(0, 1)
+  ggplot() + aes(x = lrt, y = lod_diff_proportion * (lod_diff_proportion > 0), colour = local_gene_symbol == "Hnf4a") + geom_point(size = 1 / 10) + broman::karl_theme() +  theme(legend.position="none") + ylab("LOD difference proportion") + xlab("Pleiotropy vs. separate QTL test statistic") + ylim(0, 1)
 ggplotly(pp, tooltip = c("colour", "x", "y")) 
 ggsave("lod-diff-prop-v-lrt.jpg")
 ggsave("lod-diff-prop-v-lrt.eps")
@@ -406,16 +407,24 @@ ggsave("Hnf4a-lod-diff-prop-v-lrt.svg")
 
 
 ```{r}
-pp2 <- m2_out %>% 
+foo <- m2_out %>% 
   left_join(res) %>%
-  filter(!(local_gene_symbol == "Hnf4a")) %>%
-  ggplot() + aes(x = lrt, y = lod_diff_proportion, colour = nonlocal_gene_symbol) + geom_point(size = 1 / 4) + broman::karl_theme() + theme(legend.position="none") + ylab("LOD difference proportion") + xlab("Pleiotropy vs. separate QTL test statistic") + ylim(0, 1) + facet_wrap(~ local_gene_symbol, ncol = 2)
-ggsave("lod-diff-prop-v-lrt-12-panels.jpg")
-ggsave("lod-diff-prop-v-lrt-12-panels.eps")
-ggsave("lod-diff-prop-v-lrt-12-panels.svg")
-
-ggplotly(pp2, tooltip = c("colour", "x", "y")) 
+  filter(!(local_gene_symbol == "Hnf4a")) 
+unique(foo$local_gene_symbol) -> local_unique
+# find max value of lrt in the full df
+max(foo$lrt)+ 1 -> xmax
+# separate plots for each local gene
+for (i in 1:12){
+  foo %>%
+    filter(local_gene_symbol == local_unique[i]) %>%
+    ggplot() + geom_point(aes(x = lrt, y = lod_diff_proportion * (lod_diff_proportion > 0)), size = 1/10) + broman::karl_theme(strip.placement = "inside") + theme(legend.position="none") + ylab("LOD difference proportion") + xlab("Pleiotropy vs. separate QTL test statistic") + ylim(0, 1) + xlim(0, xmax)
+  ggsave(paste0("bar_", i, ".jpg"), height = 3, width = 6)
+}
 ```
+
+
+
+
 
 ```{r}
 myt4 <- m2_out %>% 
@@ -423,14 +432,6 @@ myt4 <- m2_out %>%
 myt4$local_gene_symbol_factor <- factor(myt4$local_gene_symbol, levels = unique(myt4$local_gene_symbol))
 (levels(myt4$local_gene_symbol_factor) -> foo)
 levels(myt4$local_gene_symbol_factor) <- foo[c(16, 1:15, 17:21)]
-myt4 %>%
-  ggplot() + aes(x = lrt, y = lod_diff_proportion, colour = nonlocal_gene_symbol) + geom_point(size = 1 / 4) + theme(legend.position="none") + facet_wrap(~ local_gene_symbol_factor, ncol = 3) + xlab("Pleiotropy vs. separate QTL test statistic") + ylab("Proportion LOD difference")
-ggsave(filename = "3A-21-local-lrt-v-lod_diff_proportion.jpg", width = 9, height = 6.5, units = "in")
-ggsave(filename = "3A-21-local-lrt-v-lod_diff_proportion.eps", width = 9, height = 6.5, units = "in")
-ggsave(filename = "3A-21-local-lrt-v-lod_diff_proportion.png", width = 9, height = 6.5, units = "in")
-ggsave(filename = "3A-21-local-lrt-v-lod_diff_proportion.svg", width = 9, height = 6.5, units = "in")
-
-ggplotly(pp2, tooltip = c("colour", "x", "y")) 
 ```
 
 Now, a figure with truncated lod diff proportion values.
@@ -439,7 +440,7 @@ Now, a figure with truncated lod diff proportion values.
 myt4 %>%
   mutate(lod_diff_proportion_trunc = lod_diff_proportion * (lod_diff_proportion > 0)) %>%
   ggplot() + aes(x = lrt, y = lod_diff_proportion_trunc, colour = nonlocal_gene_symbol) + geom_point(size = 1 / 4) + theme(legend.position="none") + facet_wrap(~ local_gene_symbol_factor, ncol = 3) + xlab("Pleiotropy vs. separate QTL test statistic") + ylab("Proportion LOD difference")
-ggsave(filename = "3A-21-local-lrt-v-lod_diff_proportion-trunc.jpg", width = 9, height = 6.5, units = "in")
+ggsave(filename = "3A-13-local-lrt-v-lod_diff_proportion-trunc.jpg", width = 9, height = 6.5, units = "in")
 ```
 
 
@@ -524,6 +525,7 @@ blank_data <- tibble(group = c("lrt", "lrt", "lod_diff_proportion", "lod_diff_pr
 
 
 unique(myt4$nonlocal_gene_symbol) -> nonlocal_symbols
+## plots
 for (i in (1:147)){
   myt4 %>%
     filter(nonlocal_gene_symbol == nonlocal_symbols[i]) %>%
@@ -539,6 +541,55 @@ for (i in (1:147)){
 }
 ```
 
+## Separate plots instead of 2-panel plots
+
+```{r}
+for (i in (1:147)){
+  foo <- myt4 %>%
+    filter(nonlocal_gene_symbol == nonlocal_symbols[i]) %>%
+    left_join(dataset.islet.rnaseq$annots, by = c("local_gene_id" = "gene_id")) %>%
+    left_join(hot_peaks2, by = c("nonlocal_gene_id" = "lodcolumn")) %>%     
+    mutate(hnf4a_indic = (local_gene_symbol == "Hnf4a"))
+
+  # LOD diff proportion plots
+  foo %>% 
+    ggplot() + geom_point(aes(x = middle, y = (lod_diff_proportion > 0) * lod_diff_proportion, color = hnf4a_indic)) + geom_vline(aes(xintercept = pos)) + broman::karl_theme() + theme(legend.position="none") + ylab("LOD difference proportion") + xlab("Chromosome 2 position") + ylim(c(0, 1))
+  fn <- paste0("1-panel-LOD-diff-nonlocal_", i, "_chr2position")
+  ggsave(paste0(fn, ".jpg"))
+  ggsave(paste0(fn, ".svg"))
+  ggsave(paste0(fn, ".eps"))
+  # pleio LRT plots
+  foo %>% 
+    ggplot() + geom_point(aes(x = middle, y = lrt, color = hnf4a_indic)) + geom_vline(aes(xintercept = pos)) + broman::karl_theme() + theme(legend.position="none") + ylab("Pleiotropy v separate QTL test statistic") + xlab("Chromosome 2 position") + ylim(c(0, NA))
+  fn <- paste0("1-panel-LRT-nonlocal_", i, "_chr2position")
+  ggsave(paste0(fn, ".jpg"))
+  ggsave(paste0(fn, ".svg"))
+  ggsave(paste0(fn, ".eps"))
+}
+```
+
+
+
+
+## Count number of 147 genes that are mediated by Hnf4a
+
+We use the definition that Keller et al 2018 use. That is, we say that if the "LOD difference" statistic is greater than 1.5, then Hnf4a mediates it.
+
+```{r}
+myt4 %>%
+  filter(local_gene_symbol == "Hnf4a") %>%
+  mutate(lod_med_indic = lod_diff > 1.5) %>%
+  select(lod_med_indic) %>% unlist() %>% table()
+```
+
+We see that 88 of 147 genes meet the criteria for mediation by Hnf4a. This is the same count that Keller et al report in their GENETICS 2018 article. I haven't yet established whether the 88 gene ids are the same as those that Keller identified.
+
+
+
+
+
+
+
 
 
 
@@ -547,6 +598,3 @@ for (i in (1:147)){
 ```{r}
 devtools::session_info()
 ```
-
-
-
