@@ -712,7 +712,123 @@ hot_peaks2 %>%
   print.xtable(include.rownames = FALSE, tabular.environment = "longtable")
 ```
 
-## cowplots for local & nonlocal gene plots
+## Fixing 'strip' for local & nonlocal gene plots
+
+
+```{r}
+
+foo <- m2_out %>% 
+  left_join(res) %>%
+  filter(!(local_gene_symbol == "Hnf4a")) %>%
+  mutate(x = 60, y = 0.8)
+  
+unique(foo$local_gene_symbol) -> local_unique
+# find max value of lrt in the full df
+# separate plots for each local gene
+foo %>%
+  ggplot() + geom_point(aes(x = lrt, y = lod_diff_proportion * (lod_diff_proportion > 0)), size = 1/10) + broman::karl_theme() + facet_wrap(~ local_gene_symbol, nrow = 6, ncol = 2) + theme(legend.position="none") + #theme(
+#  strip.background = element_blank(),
+#  strip.text.x = element_blank()
+#) + 
+  ylab("LOD difference proportion") +
+  xlab("Pleiotropy vs. separate QTL test statistic") + 
+  ylim(0, 1) + xlim(0, NA) +
+  geom_text(data = foo, aes(x, y, label = local_gene_symbol), inherit.aes=FALSE)
+
+ggsave("12local-facet_grid.eps", width = 6.5, height = 9, units = "in")
+```
+
+
+
+
+```{r}
+
+
+# separate plots for each local gene
+foo %>%
+  ggplot() + geom_point(aes(x = lrt, y = lod_diff_proportion * (lod_diff_proportion > 0)), size = 1/10) + broman::karl_theme() + facet_wrap(~ local_gene_symbol, nrow = 6, ncol = 2) + theme(legend.position="none") + 
+  theme(
+    strip.background = element_blank(),
+    strip.text.x = element_blank()
+) + 
+  ylab("LOD difference proportion") +
+  xlab("Pleiotropy vs. separate QTL test statistic") + 
+  ylim(0, 1) + xlim(0, NA) +
+  geom_text(data = foo, aes(x, y, label = local_gene_symbol), inherit.aes=FALSE)
+
+ggsave("12local-facet_grid-no-strip.eps", width = 6.5, height = 9, units = "in")
+# https://stackoverflow.com/questions/10547487/remove-facet-wrap-labels-completely
+```
+
+Now, the nonlocal gene plots.
+
+
+```{r}
+indices <- c(97, 105, 64, 141)
+nonlocal_symbols[indices]
+levels(as.factor(nonlocal_symbols[indices]))
+levs <- levels(as.factor(nonlocal_symbols[indices]))[c(1, 3, 4, 2)]
+levs_logical <- c(TRUE, FALSE)
+foo <- myt4 %>%
+    filter(nonlocal_gene_symbol %in% nonlocal_symbols[indices]) %>%
+    left_join(dataset.islet.rnaseq$annots, by = c("local_gene_id" = "gene_id")) %>%
+    left_join(hot_peaks2, by = c("nonlocal_gene_id" = "lodcolumn")) %>%     
+    mutate(hnf4a_indic = (local_gene_symbol == "Hnf4a"), 
+           ordering_factor = factor(nonlocal_gene_symbol, levels = levs),
+           hnf4a_indic_factor = factor(hnf4a_indic, levels = levs_logical), 
+           x = 60, y = 0.8 # for adding geom_text
+             )
+
+  # scatter plots 
+
+foo %>% 
+  ggplot() + 
+  geom_point(size = 1 + foo$hnf4a_indic, aes( 
+                           x = lrt, 
+                           y = (lod_diff_proportion > 0) * lod_diff_proportion, 
+                           color = hnf4a_indic_factor)) + 
+  #geom_jitter() + 
+  broman::karl_theme() + 
+  theme(legend.position="none") + 
+  ylab("LOD difference proportion") + 
+  xlab("Pleiotropy vs. separate QTL test statistic") + 
+  ylim(c(0, 1)) + 
+  xlim(0, 73) + 
+  facet_wrap(~ ordering_factor, nrow = 2, ncol = 2) + 
+  theme(
+    strip.background = element_blank(),
+    strip.text.x = element_blank()
+) +
+  geom_text(data = foo, aes(x, y, label = nonlocal_gene_symbol), inherit.aes=FALSE)
+# 
+fn <- "nonlocal-4-panels-no-strip"
+ggsave(paste0(fn, ".svg"), height = 9, width = 6.5, units = "in")
+ggsave(paste0(fn, ".eps"), height = 9, width = 6.5, units = "in")
+foo %>% 
+  ggplot() + 
+  geom_point(size = 1 + foo$hnf4a_indic, aes( 
+                           x = lrt, 
+                           y = (lod_diff_proportion > 0) * lod_diff_proportion, 
+                           color = hnf4a_indic_factor)) + 
+  #geom_jitter() + 
+  broman::karl_theme() + 
+  theme(legend.position="none") + 
+  ylab("LOD difference proportion") + 
+  xlab("Pleiotropy vs. separate QTL test statistic") + 
+  ylim(c(0, 1)) + 
+  xlim(0, 73) + 
+  facet_wrap(~ ordering_factor, nrow = 2, ncol = 2) + 
+#  theme(
+#    strip.background = element_blank(),
+#    strip.text.x = element_blank()
+#) +
+  geom_text(data = foo, aes(x, y, label = nonlocal_gene_symbol), inherit.aes=FALSE)
+# 
+fn <- "nonlocal-4-panels"
+ggsave(paste0(fn, ".svg"), height = 9, width = 6.5, units = "in")
+ggsave(paste0(fn, ".eps"), height = 9, width = 6.5, units = "in")
+
+```
 
 
 
