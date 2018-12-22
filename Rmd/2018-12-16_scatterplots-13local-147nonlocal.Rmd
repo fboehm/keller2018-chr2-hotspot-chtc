@@ -3,7 +3,7 @@ title: "Comparing LRT for pleiotropy v separate QTL against LOD diff in mediatio
 author: "Frederick Boehm"
 date: "`r lubridate::now()`"
 output: 
-  github_document:
+  html_document:
     toc: true
     toc_depth: 2
 ---

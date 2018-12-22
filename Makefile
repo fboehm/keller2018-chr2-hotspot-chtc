@@ -11,7 +11,8 @@ DOCNAME = overleaf/main
 all: doc
 doc: pdf
 pdf: overleaf/main.pdf
-fig: Rmd/lod-diff-prop-v-lrt.jpg
+fig: Rmd/%.eps
+data: data/%.rds data-to-ignore/%.Rdata
 
 
 # Rules
@@ -34,6 +35,6 @@ clean: mostlyclean
 
 
 	
-Rmd/lod-diff-prop-v-lrt.jpg: $(RMD_FILE)
+Rmd/%.eps: $(RMD_FILE)
 	Rscript -e "rmarkdown::render('$<')"
   
