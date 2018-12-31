@@ -1,30 +1,30 @@
-RMD_FILE = Rmd/2018-12-16_scatterplots-13local-147nonlocal.Rmd
+RMD_FILE = ../Rmd/2018-12-16_scatterplots-13local-147nonlocal.Rmd
 
 # Tools
 LATEXMK = latexmk
 RM = rm -f
 
 # Project-specific settings
-DOCNAME = overleaf/main
+#DOCNAME = main
 
 # Targets
 all: pdf
-pdf: overleaf/main.pdf
+pdf: main.pdf
 
 
 
 # Rules
-overleaf/main.pdf: 
-	cd overleaf; $(LATEXMK) -pdfps -bibtex main.tex
+main.pdf: 
+	pdflatex main; biber main; pdflatex main
 
 mostlyclean:
-	cd overleaf; $(LATEXMK) -silent -c
-	$(RM) overleaf/*.bbl
+	$(LATEXMK) -silent -c
+	$(RM) *.bbl
 
 clean: mostlyclean
-	cd overleaf; $(LATEXMK) -silent -C
-	$(RM) overleaf/*.run.xml overleaf/*.synctex.gz
-	$(RM) overleaf/*.d
+	$(LATEXMK) -silent -C
+	$(RM) *.run.xml *.synctex.gz
+	$(RM) *.d
 
 .PHONY: all clean mostlyclean pdf
 

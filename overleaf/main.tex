@@ -15,6 +15,7 @@
 \addbibresource{research.bib}
 \addbibresource{packages.bib}
 
+
 \usepackage{graphicx}
 \usepackage{subcaption}
 \usepackage{amssymb}
@@ -26,11 +27,14 @@
 \hypersetup{
     colorlinks=true
 }
-
+\usepackage[outdir=./]{epstopdf}
 
 \title{Chapter 3A}
 \author{Frederick Boehm}
 \date{\today}
+
+
+
 
 \begin{document}
 \doublespacing
@@ -173,6 +177,11 @@ The 147 nonlocal traits that we studied all had LOD peak heights above 7.18 and 
 
 \subsection{Statistical analyses}
 
+We used both univariate and bivariate QTL scans. In the univariate scans, we identified LOD peaks for each of 160 expression traits that mapped to within 2 Mb of the center of the Chromosome 2 expression trait hotspot. Thirteen of these 160 gene expression traits arise from local genes, ie, genes whose DNA is on Chromosome 2. The remaining 147 expression traits are nonlocal traits, meaning that they arise from genes whose DNA is either not on Chromosome 2 or is on Chromosome 2 but more than 2 Mb from the center of the expression trait hotspot (near 165.5 Mb). 
+
+
+
+
 \subsubsection{Univariate QTL scans}
 
 \citet{keller2018genetic} provided univariate QTL mapping results in their Data Dryad file, so we didn't repeat the univariate QTL scans. We briefly summarize their analyses below.
@@ -298,7 +307,7 @@ We colored blue the points that involve \emph{Hnf4a} as the local gene; all othe
 
 \begin{figure}
     \centering
-    \includegraphics[width = 0.7\textwidth]{../Rmd/lod-diff-prop-v-lrt.jpg}
+    \includegraphics[width = 0.7\textwidth]{../Rmd/lod-diff-prop-v-lrt.eps}
     \caption{LOD difference proportion against pleiotropy vs. separate QTL test statistics for 1911 pairs of traits. Each point represents a single pair. Pairs that involve local expression trait Hnf4a are colored blue, while all others are colored red. Note the high prevalence of blue points in the upper left quadrant of the figure. These points, with low values of the pleiotropy vs. separate QTL test statistic and high values of LOD difference proportion, are consistent with Hnf4a transcript levels mediating the effect of Hnf4a genetic variants affecting nonlocal transcript abundances.}
     \label{fig:lod-diff-prop-v-lrt-all}
 \end{figure}
@@ -313,19 +322,6 @@ In comparing the \emph{Hnf4a} plot (Figure \ref{fig:hnf4a}) with the other 12 pl
 
 
 
-\begin{figure}
-    \centering
-    \includegraphics[width = \textwidth]{../Rmd/baseR-Hnf4a.jpg}
-    \caption{Scatter plot of LOD difference proportion against pleiotropy vs. separate QTL test statistic value for 147 pairs of expression traits. Each pair pairs Hnf4a as the local gene expression trait with one of the 147 nonlocal traits. 18 of 147 nonlocal traits have pleiotropy vs. separate QTL test statistic values greater than 5, which suggests that approximately 128 of 147 nonlocal traits share a pleiotropic QTL with Hnf4a. Note also the considerable proportion of points with LOD difference proportion greater than 0.5.}
-    \label{fig:hnf4a}
-\end{figure}
-
-\begin{figure}
-    \centering
-    \includegraphics[height = 0.9\textheight]{../Rmd/baseR-12.jpg}
-    \caption{Scatter plots of LOD difference proportion against pleiotropy vs. separate QTL test statistic for each of 12 local gene expression traits. Each plot is labeled with the local gene expression trait. Each plot contains 147 points, resulting from analyses involving the labeled local gene expression trait and each of the 147 nonlocal gene expression traits.}
-    \label{fig:nothnf4a-12}
-\end{figure}
 
 % latex table generated in R 3.5.1 by xtable 1.8-3 package
 % Wed Dec 19 10:50:32 2018
@@ -410,6 +406,7 @@ We found that, when there is a well-defined mediator, between a DNA variant and 
 \newpage
 % latex table generated in R 3.5.1 by xtable 1.8-3 package
 % Tue Dec 18 18:18:00 2018
+\begin{tiny}
 \begin{longtable}{lrr}
   \caption{LOD peak positions and peak heights for 147 expression traits that map to the Chromosome 2 expression trait hotspot.}
   \label{tab:hot-annot}
@@ -566,5 +563,6 @@ Mtfp1 & 163.52 & 17.79 \\
   Gpr20 & 166.84 & 8.41 \\ 
    \hline
 \end{longtable}
+\end{tiny}
 
 \end{document}
