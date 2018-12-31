@@ -8,14 +8,13 @@ RM = rm -f
 #DOCNAME = main
 
 # Targets
-all: pdf
-pdf: main.pdf
+all: main.pdf
 
 
 
 # Rules
-main.pdf: 
-	pdflatex main; biber main; pdflatex main
+main.pdf: main.tex
+	pdflatex main.tex; biber main; pdflatex main.tex
 
 mostlyclean:
 	$(LATEXMK) -silent -c
@@ -26,6 +25,6 @@ clean: mostlyclean
 	$(RM) *.run.xml *.synctex.gz
 	$(RM) *.d
 
-.PHONY: all clean mostlyclean pdf
+.PHONY: all clean mostlyclean 
 
 
