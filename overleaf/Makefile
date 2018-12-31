@@ -8,16 +8,15 @@ RM = rm -f
 DOCNAME = overleaf/main
 
 # Targets
-all: doc
-doc: pdf
+all: pdf
 pdf: overleaf/main.pdf
-fig: Rmd/%.eps
-data: data/%.rds data-to-ignore/%.Rdata
+
 
 
 # Rules
-%.pdf: %.tex fig
+overleaf/main.pdf: 
 	cd overleaf; $(LATEXMK) -pdfps -bibtex main.tex
+
 mostlyclean:
 	cd overleaf; $(LATEXMK) -silent -c
 	$(RM) overleaf/*.bbl
@@ -27,14 +26,6 @@ clean: mostlyclean
 	$(RM) overleaf/*.run.xml overleaf/*.synctex.gz
 	$(RM) overleaf/*.d
 
-.PHONY: all clean doc mostlyclean pdf
-
-# Include auto-generated dependencies
-#-include *.d
+.PHONY: all clean mostlyclean pdf
 
 
-
-	
-Rmd/%.eps: $(RMD_FILE)
-	Rscript -e "rmarkdown::render('$<')"
-  
