@@ -318,6 +318,20 @@ To more thoroughly examine the relationships across the 13 local genes, we creat
 
 In comparing the \emph{Hnf4a} plot (Figure \ref{fig:hnf4a}) with the other 12 plots (Figure \ref{fig:nothnf4a-12}), we see that none of the 12 plots in Figure \ref{fig:nothnf4a-12} closely resembles Figure \ref{fig:hnf4a}. Serinc3, Stk4, Neurl2, and Cdh22 are closest in appearance to the plot of Hnf4a. However, each of Serinc3, Stk4, Neurl2, and Cdh22 has very few points with LOD difference proportion above 0.5, while Hnf4a has many points with LOD difference proportion above 0.5.
 
+\begin{figure}
+    \centering
+    \includegraphics[width = \textwidth]{../Rmd/Hnf4a-lod-diff-prop-v-lrt.eps}
+    \caption{}
+    \label{fig:hnf4a}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \includegraphics[width = 0.8\textwidth]{../Rmd/12local-facet_grid-no-strip.eps}
+    \caption{}
+    \label{fig:nothnf4a-12}
+\end{figure}
+
 
 
 
@@ -406,10 +420,7 @@ We found that, when there is a well-defined mediator, between a DNA variant and 
 \newpage
 % latex table generated in R 3.5.1 by xtable 1.8-3 package
 % Tue Dec 18 18:18:00 2018
-\begin{tiny}
 \begin{longtable}{lrr}
-  \caption{LOD peak positions and peak heights for 147 expression traits that map to the Chromosome 2 expression trait hotspot.}
-  \label{tab:hot-annot}
 \hline \\
 
 Gene symbol & Peak position & LOD \\ 
@@ -562,7 +573,9 @@ Mtfp1 & 163.52 & 17.79 \\
   Acat3 & 166.61 & 7.17 \\ 
   Gpr20 & 166.84 & 8.41 \\ 
    \hline
+  \caption{LOD peak positions and peak heights for 147 expression traits that map to the Chromosome 2 expression trait hotspot.}
+  \label{tab:hot-annot}
+
 \end{longtable}
-\end{tiny}
 
 \end{document}
