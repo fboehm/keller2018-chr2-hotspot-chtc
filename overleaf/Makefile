@@ -1,30 +1,47 @@
-RMD_FILE = ../Rmd/2018-12-16_scatterplots-13local-147nonlocal.Rmd
+# Latex Makefile using latexmk
+# Modified by Dogukan Cagatay <dcagatay@gmail.com>
+# Originally from : http://tex.stackexchange.com/a/40759
+#
+# Change only the variable below to the name of the main tex file.
+PROJNAME=main
+RMD_DIR=../Rmd
 
-# Tools
-LATEXMK = latexmk
-RM = rm -f
+# You want latexmk to *always* run, because make does not have all the info.
+# Also, include non-file targets in .PHONY so they are run regardless of any
+# file of the given name existing.
+.PHONY: $(PROJNAME).pdf all clean
 
-# Project-specific settings
-#DOCNAME = main
+# The first rule in a Makefile is the one executed by default ("make"). It
+# should always be the "all" rule, so that "make" and "make all" are identical.
+all: $(PROJNAME).pdf
 
-# Targets
-all: main.pdf
+# CUSTOM BUILD RULES
 
+# In case you didn't know, '$@' is a variable holding the name of the target,
+# and '$<' is a variable holding the (first) dependency of a rule.
+# "raw2tex" and "dat2tex" are just placeholders for whatever custom steps
+# you might have.
 
+#%.tex: %.raw
+#	./raw2tex $< > $@
 
-# Rules
-main.pdf: main.tex
-	pdflatex main.tex; biber main; pdflatex main.tex
+#%.tex: %.dat
+#	./dat2tex $< > $@
 
-mostlyclean:
-	$(LATEXMK) -silent -c
-	$(RM) *.bbl
+# MAIN LATEXMK RULE
 
-clean: mostlyclean
-	$(LATEXMK) -silent -C
-	$(RM) *.run.xml *.synctex.gz
-	$(RM) *.d
+# -pdf tells latexmk to generate PDF directly (instead of DVI).
+# -pdflatex="" tells latexmk to call a specific backend with specific options.
+# -use-make tells latexmk to call make for generating missing files.
 
-.PHONY: all clean mostlyclean 
+# -interactive=nonstopmode keeps the pdflatex backend from stopping at a
+# missing file reference and interactively asking you for an alternative.
 
+$(PROJNAME).pdf: $(PROJNAME).tex $(RMD_DIR)/
+	latexmk -pdf -pdflatex="pdflatex -interactive=nonstopmode" -use-make -pvc $<
 
+cleanall:
+	latexmk -C
+
+clean:
+	latexmk -c

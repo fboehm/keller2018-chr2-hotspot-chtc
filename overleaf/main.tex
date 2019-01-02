@@ -396,19 +396,15 @@ Scatter plots of LOD difference proportion values against pleiotropy vs. separat
 
 \section{Discussion}
 
-Our pairwise analyses with both mediation analyses and tests of pleiotropy vs. separate QTL provide additional evidence for the importance of Hnf4a in the biology of the Chromosome 2 hotspot in pancreatic islet cells. Our analyses, and, specifically, the test of pleiotropy vs. separate QTL, may be more useful when studying nonlocal traits that map to a hotspot yet don't show strong evidence of mediation by local expression traits. In such a setting, the test of pleiotropy vs. separate QTL can, at least, provide some information about the genetic architecture at the hotspot. 
+Our pairwise analyses with both mediation analyses and tests of pleiotropy vs. separate QTL provide additional evidence for the importance of Hnf4a in the biology of the Chromosome 2 hotspot in pancreatic islet cells. Our analyses, and, specifically, the test of pleiotropy vs. separate QTL, may be more useful when studying nonlocal traits that map to a hotspot yet don't show strong evidence of mediation by local expression traits. In such a setting, the test of pleiotropy vs. separate QTL can, at least, provide some information about the genetic architecture at the hotspot. Specifically, our test of pleiotropy vs. separate QTL may inform inferences about the number of underlying QTL in a given expression trait hotspot. Additionally, our test may limit the number of expression traits that are potential intermediates between a QTL and a specified nonlocal expression trait. This relies on the assumption that an intermediate expression trait and a target expression trait presumably share a QTL. 
 
-On the other hand, mediation analyses, when they provide evidence for mediation of a nonlocal trait by a local expression trait, are more informative than the test of pleiotropy vs. separate QTL. 
+On the other hand, mediation analyses, when they provide evidence for mediation of a nonlocal trait by a local expression trait, are more informative than the test of pleiotropy vs. separate QTL, since the mediation analyses identify precisely the intermediate expression trait. 
 
+We recommend using both tests of pleiotropy vs separate QTL and mediation analyses when dissecting an expression trait QTL hotspot. In practice, mediation analyses, which involve a collection of univariate regressions at a small set of pre-specified markers, are less computationally intense than tests of pleiotropy vs. separate QTL, since the latter requires a two-dimensional QTL scan over the region of interest. This two-dimensional QTL scan often involves fitting more than ten thousand bivariate regression models. In light of the computational cost of testing pleiotropy vs separate QTL, future researchers may wish to use it as a follow-up to mediation analyses when examining expression trait hotspots.
 
+Future research may investigate the use of polygenic random effects in the statistical models for mediation analysis. Additional methodological questions include approaches for declaring significant a mediation LOD difference proportion and consideration of other possible measures and scales of extent of mediation. Additionally, future researchers may wish to consider biological models that contain two mediators. 
 
-
-
-
-
-
-We found that, when there is a well-defined mediator, between a DNA variant and a nonlocal expression trait, regression-based mediation analyses identify the relationship. However, in those cases in which no clear mediator exists, our test of pleiotropy vs. separate QTL provides valuable information in the dissection of QTL hotspots. 
-
+The social and health sciences have witnessed much methods research in  mediation analysis. The field of statistical genetics has not fully adopted these strategies yet, but, given the nature of current and future data, many opportunities exist for translation of approaches from epidemiology to systems genetics. For example, the 2015 text from Vander Weele contains detailed discussions of many methods issues that arose in mediation analyses in epidemiology studies.
 
 
 
