@@ -47,8 +47,13 @@
 
 \section{Introduction}
 
+A central goal of systems genetics studies is to identify causal relationships between genetic variants and quantitative traits. Recent work by \citet{chick2016defining} has popularized linear regression-based methods for causal inference in systems genetics. The great successes of these methods in identifying causal relationships among genetic variants and quantitative biomolecule concentrations motivates our goal of clarifying a role for our test of pleiotropy vs. separate QTL in systems genetics studies. We argue that our test of pleiotropy vs. separate QTL complements mediation analysis in two ways. First, our test limits the set of candidate mediators by ruling out traits that don't share a single pleiotropic QTL. Second, when regression-based mediation analysis fails to identify a mediator, our test of pleiotropy vs. separate QTL still provides information on the number of QTL. The number of separate QTL may provide clues to aid biological understanding.
 
-We present a study into the complementary nature of our test of pleiotropy vs. separate QTL with causal mediation analyses. Our introduction begins with an overview of a framework for causal mediation analysis. We then discuss approaches to causal mediation analysis in systems genetics. 
+We begin below with an overview of a causal mediation analysis framework. We then discuss applications of parts of this framework to the systems genetics context. We describe in our methods section the study design and statistical analyses in which we use mediation analysis and our pleiotropy vs. separate QTL test to dissect an expression trait hotspot with data from 378 Diversity Outbred mice.  
+
+
+
+
 
 
 Specifically, one may formulate a mediation analysis by identifying a marker (and its founder allele probabilities) as the "driver" of a causal diagram. In recalling the central dogma of molecular biology, we want to consider a marker that affects transcript levels of a nearby gene \citep{crick1958protein}. For example, if a gene is located on Chromosome 2 and centered at 100 Mb, then we would want to consider markers that are also on Chromosome 2 and near 100 Mb, perhaps between 98 Mb and 102 Mb. If a second expression trait - typically transcripts from a gene that is not “local” - maps near the marker that we’ve identified, then we can ask whether trait1 “mediates” the relationship between trait2 and the marker. 
