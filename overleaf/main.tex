@@ -3,6 +3,7 @@
 \usepackage{todonotes}
 \usepackage{setspace}
 \usepackage[margin = 1in]{geometry}
+\usepackage{mdframed}
 \usepackage{amsmath}
 \usepackage[
     backend=biber,
@@ -14,7 +15,6 @@
 ]{biblatex}
 \addbibresource{research.bib}
 \addbibresource{packages.bib}
-
 
 \usepackage{graphicx}
 \usepackage{subcaption}
@@ -28,7 +28,9 @@
     colorlinks=true
 }
 \usepackage[outdir=./]{epstopdf}
-
+\DeclareCaptionType{equ}[][] 
+%https://stackoverflow.com/questions/149479/adding-a-caption-to-an-equation-in-latex
+%\captionsetup[equ]{labelformat=empty}
 \title{Chapter 3A}
 \author{Frederick Boehm}
 \date{\today}
@@ -54,35 +56,44 @@ To determine whether trait1 mediates the relationship between trait2 and the mar
 
 The rationale behind this strategy is as follows. If the driver affects trait2 solely by way of trait1, then conditioning on trait1 would nullify the relationship between driver and trait2. At the other extreme, if the driver affects trait2 solely through mechanisms that don't involve trait1, then conditioning on trait1 values would not affect the association between the driver and trait2.
 
-
-
 One role for our test of pleiotropy vs separate QTL is to potentially limit the set of candidate mediators that require study. For example, if trait1 and trait2 map to separate QTL, then it would be unlikely that trait1 affects trait2 (or vice versa). On the other hand, if we believe that a single pleiotropic locus affects both trait1 and trait2, then a mediation analysis is particularly useful in efforts to clarify the relationship between trait1 and trait2. In this setting, where a single pleiotropic locus affects both trait1 and trait2, and we seek to identify whether the trait1 or trait2 is the intermediate, we would perform two mediation analyses, one with trait1 as candidate intermediate between driver and trait2, and a second analysis with trait2 as a candidate intermediate between driver and trait1. 
 
 \subsection{Regression-based mediation methods}
 
 Frequently one uses regression-based methods to identify causal intermediates from among multiple measured variables \citep{baron1986moderator}. For example, \citet{chick2016defining} measured 16,921 gene transcript levels and 6,756 protein concentrations in liver tissue from 192 mice. After identifying QTL for gene transcript levels and protein concentrations, they performed regression-based mediation analyses. For each candidate mediator, they fitted four linear models: 
 
+\begin{equ}[!ht]
 \begin{equation}
 Y = b1 + WC + E
 \label{model1}
 \end{equation}
+\caption{Linear model with intercept and covariates only.}
+\end{equ}
 
+\begin{equ}[!ht]
 \begin{equation}
 Y = XB + WC + E
 \label{model2}
 \end{equation}
+\caption{Linear model with founder allele dosages and covariates.}
+\end{equ}
 
+\begin{equ}[!ht]
 \begin{equation}
 Y = b1 + WC + M\beta + E
 \label{model3}
 \end{equation}
+\caption{Linear model with intercept, covariates, and candidate mediator.}
+\end{equ}
 
+\begin{equ}[!ht]
 \begin{equation}
 Y = XB + WC + M\beta + E
 \label{model4}
 \end{equation}
+\caption{Linear model with founder allele dosages, covariates, and candidate mediator.}
+\end{equ}
 
-\todo{add a caption to this set of equations}
 
 In the above four models, $X$ is a $n$ by $8$ matrix of founder allele probabilities at a single marker, $B$ is a $8$ by $1$ matrix of founder allele effects, $E$ is a $n$ by $1$ matrix of random errors, $b$ is an number, $1$ is a $n$ by $1$ matrix with all entries set to $1$, $Y$ is a $n$ by $1$ matrix of phenotype values (for a single trait), and $M$ is a $n$ by $1$ matrix of values for a putative mediator. $C$ is a matrix of covariate effects, and $W$ is a matrix of covariates. We denote the coefficient of the mediator by $\beta$.
 
@@ -91,7 +102,7 @@ We assume that the vector $E$ is (multivariate) normally distributed with zero v
 With the above models, the log-likelihoods are easily calculated. For example, in Equation \ref{model1}, the vector $Y$ follows a multivariate normal distribution with mean $(b1 + WC)$ and covariance $\Sigma = \sigma^2I$. Thus, we can write the likelihood for Model \ref{model1} as:
 
 \begin{equation}
-    L(b, C, \sigma^2| Y, W) = (2\pi)^{- \frac{n}{2}}\exp{ - \frac{1}{2}\left((Y - b1 - WC)^T\Sigma^{-1}(Y - b1 - WC)\right)}
+    L(b, C, \sigma^2| Y, W) = (2\pi)^{- \frac{n}{2}}\exp{ \left(- \frac{1}{2}(Y - b1 - WC)^T\Sigma^{-1}(Y - b1 - WC)\right)}
 \end{equation}
 
 We thus have the following equation for the log-likelihood for model 1:
@@ -118,37 +129,39 @@ And, finally, \citet{keller2018genetic} calculated the statistic:
 
 LOD difference need not be positive. For example, in the setting where the putative mediator is not a true mediator, $LOD_1$ and $LOD_2$ values may lead to a negative LOD difference statistic. In our analyses in this section, we truncated these negative LOD difference values to zero. 
 
-For each mediation analysis, we also consider the LOD difference proportion, which we define as:
+For each mediation analysis, we consider the LOD difference proportion, which we define below (Equation \ref{eq:lod-diff-prop}).
 
 \begin{equation}
-\text{LOD difference proportion} = (LOD_1 - LOD_2) / LOD_1
+\text{LOD difference proportion} = \frac{(LOD_1 - LOD_2)}{LOD_1}
+\label{eq:lod-diff-prop}
 \end{equation}
 
-In other words, we consider what proportion of the response, on the LOD scale, is diminished by conditioning on a putative mediator. This statistic differs from the LOD difference statistic in that it scales the mediation LOD difference by LOD$_1$ value. We do this in efforts to accommodate the diversity of LOD peak heights in our data. While a value of 5 for mediation LOD difference may be important for a trait with a LOD$_1$ of 12, another trait with a LOD$_1$ of 120 that has a LOD$_2$ of 115, suggests that nearly all of the signal remains transmitted when conditioning on the putative mediator.
+In other words, we consider what proportion of the association strength, on the LOD scale, is diminished by conditioning on a putative mediator. This statistic differs from the LOD difference statistic in that it scales the mediation LOD difference by LOD$_1$ value. We do this in efforts to accommodate the diversity of LOD peak heights in our data. While a value of 5 for LOD difference may be important for a trait with a LOD$_1$ of 12, another trait with a LOD$_1$ of 120 that has a LOD$_2$ of 115, suggests that nearly all of the signal remains transmitted when conditioning on the putative mediator.
 
 To perform a mediation analysis, we must specify three components of a possible directed acyclic graph. For our purposes, we always begin with a marker's founder allele probabilities. Since we are working in the context of dissecting an expression QTL hotspot, we choose the "driver" to be the founder allele probabilities at the peak position for a local expression trait. We then choose the terminus of the putative graph, i.e., the "target", to be a nonlocal expression trait. 
 
 
 
-\subsection{Causal effects}
-
-\todo[inline]{add text about "proportion mediated", natural indirect effect, natural direct effect, total effect}
-
-\subsection{Proportion mediated}
 
 
 
 \subsection{Four assumptions for causal inference}
 
-To claim that the LOD difference statistic\todo{check \& revise wording here after looking again at Tyler's book} reflects a causal relationship, four assumptions about confounding are needed \citep{vanderweele2015explanation}. \citet{vanderweele2015explanation} states that, for "natural direct effects" and "natural indirect effects", these four assumptions are needed.
+To claim that the LOD difference statistic reflects a causal relationship, four assumptions about confounding are needed \citep{vanderweele2015explanation}. 
 
+
+\begin{mdframed}
 \begin{enumerate}
 \item No unmeasured confounding of the treatment-outcome relationship
 \item No unmeasured confounding of the mediator-outcome relationship
 \item No unmeasured confounding of the treatment-mediator relationship
-\item No mediator-outcome confounder that is affected by the exposure
+\item No mediator-outcome confounder that is affected by the treatment
+\label{list4}
 \end{enumerate}
+\end{mdframed}
 
+
+In the above terminology, treatment refers to the founder allele dosages matrix, while outcome is the nonlocal gene expression trait, and mediator is the local gene expression trait.
 
 
 
