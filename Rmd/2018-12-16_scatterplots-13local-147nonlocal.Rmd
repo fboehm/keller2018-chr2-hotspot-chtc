@@ -12,7 +12,7 @@ Our goal here is to examine the relationships between pleiotropy v separate QTL 
 
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
 ```
 
 ```{r}
@@ -127,16 +127,19 @@ library(intermediate) # from github, fboehm/intermediate
 
 
 ```{r}
-indices <- local_peaks %>%
+indices <- hotspot_peaks %>%
+  filter(chr == 2) %>%
   left_join(map_chr2_tib) %>%
   select(index) %>%
   unlist()
 ```
 
+
+
+
 ```{r}
 dri21 <- genoprobs$`2`[rownames(genoprobs$`2`) %in% rownames(hot), , indices]
-cbind(dimnames(dri21)[[3]], 
-indices)
+cbind(dimnames(dri21)[[3]], indices)
 ```
 ```{r}
 med21 <- local13[ , colnames(local13) %in% local_peaks$lodcolumn]
@@ -152,7 +155,7 @@ out21 <- list()
 foo <- list()
 for (j in 1:13){
   for (i in 1:147){
-   foo[[i]]<- fit1_med(driver = dri21[ , , j],
+   foo[[i]]<- fit1_med(driver = dri21[ , , i],
          target = hot[ , i], 
          mediator = med21[ , j], 
          addcovar = addcovar2)
@@ -384,7 +387,7 @@ myt3 <- m2_out %>%
   left_join(res) 
 
 pp <- myt3 %>%
-  ggplot() + aes(x = lrt, y = lod_diff_proportion * (lod_diff_proportion > 0), colour = local_gene_symbol == "Hnf4a") + geom_point(size = 1 / 10) + broman::karl_theme() +  theme(legend.position="none") + ylab("LOD difference proportion") + xlab("Pleiotropy vs. separate QTL test statistic") + ylim(0, 1)
+  ggplot() + aes(x = lrt, y = lod_diff_proportion * (lod_diff_proportion > 0), colour = local_gene_symbol != "Hnf4a") + geom_point(size = 1 / 10) + broman::karl_theme() +  theme(legend.position="none") + ylab("LOD difference proportion") + xlab("Pleiotropy vs. separate QTL test statistic") + ylim(0, 1) + xlim(0, 75)
 ggplotly(pp, tooltip = c("colour", "x", "y")) 
 ggsave("lod-diff-prop-v-lrt.jpg", height = 7, width = 7, units = "in")
 ggsave("lod-diff-prop-v-lrt.eps", height = 7, width = 7, units = "in")
@@ -396,12 +399,14 @@ ggsave("lod-diff-prop-v-lrt.svg", height = 7, width = 7, units = "in")
 ```{r}
 pp <- myt3 %>%
   filter(local_gene_symbol == "Hnf4a") %>%
-  ggplot() + aes(x = lrt, y = lod_diff_proportion * (lod_diff_proportion > 0), colour = local_gene_symbol) + geom_point(size = 1 / 4) + broman::karl_theme() + theme(legend.position="none") + ylab("LOD difference proportion") + xlab("Pleiotropy vs. separate QTL test statistic") + ylim(0, 1)
+  ggplot() + aes(x = lrt, y = lod_diff_proportion * (lod_diff_proportion > 0), colour = local_gene_symbol != "Hnf4a") + geom_point(size = 1 / 4) + broman::karl_theme() + theme(legend.position="none") + ylab("LOD difference proportion") + xlab("Pleiotropy vs. separate QTL test statistic") + ylim(0, 1) + xlim(0, 75)
 ggplotly(pp, tooltip = c("colour", "x", "y")) 
 ggsave("Hnf4a-lod-diff-prop-v-lrt.jpg", height = 7, width = 7, units = "in")
 ggsave("Hnf4a-lod-diff-prop-v-lrt.eps", height = 7, width = 7, units = "in")
 ggsave("Hnf4a-lod-diff-prop-v-lrt.svg", height = 7, width = 7, units = "in")
 ```
+
+
 
 
 
@@ -417,7 +422,7 @@ max(foo$lrt)+ 1 -> xmax
 for (i in 1:12){
   foo %>%
     filter(local_gene_symbol == local_unique[i]) %>%
-    ggplot() + geom_point(aes(x = lrt, y = lod_diff_proportion * (lod_diff_proportion > 0)), size = 1/10) + broman::karl_theme(strip.placement = "inside") + theme(legend.position="none") + ylab("LOD difference proportion") + xlab("Pleiotropy vs. separate QTL test statistic") + ylim(0, 1) + xlim(0, xmax)
+    ggplot() + geom_point(aes(x = lrt, y = lod_diff_proportion * (lod_diff_proportion > 0), colour = local_gene_symbol != "Hnf4a" ), size = 1/10) + broman::karl_theme(strip.placement = "inside") + theme(legend.position="none") + ylab("LOD difference proportion") + xlab("Pleiotropy vs. separate QTL test statistic") + ylim(0, 1) + xlim(0, xmax)
   ggsave(paste0("bar_", i, ".jpg"), height = 3, width = 6, units = "in")
 }
 ```
@@ -526,7 +531,7 @@ ggplotly(pp, tooltip = c("colour", "x", "y"))
 
 ## How many nonlocal genes have Hnf4a as the strongest mediator?
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 library(xtable)
 ```
 
@@ -559,6 +564,10 @@ blank_data <- tibble(group = c("lrt", "lrt", "lod_diff_proportion", "lod_diff_pr
 
 
 unique(myt4$nonlocal_gene_symbol) -> nonlocal_symbols
+```
+
+
+```{r, eval = FALSE}
 ## plots
 for (i in (1:147)){
   myt4 %>%
@@ -577,7 +586,7 @@ for (i in (1:147)){
 
 ## Separate plots instead of 2-panel plots
 
-```{r}
+```{r, eval = FALSE}
 for (i in (1:147)){
   foo <- myt4 %>%
     filter(nonlocal_gene_symbol == nonlocal_symbols[i]) %>%
@@ -617,7 +626,7 @@ for (i in (1:147)){
 
   # scatter plots
   foo %>% 
-    ggplot() + geom_point(aes(x = lrt, y = (lod_diff_proportion > 0) * lod_diff_proportion, color = hnf4a_indic)) + broman::karl_theme() + theme(legend.position="none") + ylab("LOD difference proportion") + xlab("Pleiotropy vs. separate QTL test statistic") + ylim(c(0, 1)) + xlim(0, 73) + ggtitle(nonlocal_symbols[i]) + theme(plot.title = element_text(hjust = 0.5, vjust = - 10))
+    ggplot() + geom_point(aes(x = lrt, y = (lod_diff_proportion > 0) * lod_diff_proportion, color = !hnf4a_indic)) + broman::karl_theme() + theme(legend.position="none") + ylab("LOD difference proportion") + xlab("Pleiotropy vs. separate QTL test statistic") + ylim(c(0, 1)) + xlim(0, 73) + ggtitle(nonlocal_symbols[i]) + theme(plot.title = element_text(hjust = 0.5, vjust = - 10))
   fn <- paste0("nonlocal-scatter_", i)
   ggsave(paste0(fn, ".jpg"), height = 7, width = 7, units = "in")
   ggsave(paste0(fn, ".svg"), height = 7, width = 7, units = "in")
@@ -723,10 +732,13 @@ foo <- m2_out %>%
   mutate(x = 60, y = 0.8)
   
 unique(foo$local_gene_symbol) -> local_unique
+```
+
+```{r, eval = FALSE}
 # find max value of lrt in the full df
 # separate plots for each local gene
 foo %>%
-  ggplot() + geom_point(aes(x = lrt, y = lod_diff_proportion * (lod_diff_proportion > 0)), size = 1/10) + broman::karl_theme() + facet_wrap(~ local_gene_symbol, nrow = 6, ncol = 2) + theme(legend.position="none") + #theme(
+  ggplot() + geom_point(aes(x = lrt, y = lod_diff_proportion * (lod_diff_proportion > 0), colour = local_gene_symbol != "Hnf4a"), size = 1/10) + broman::karl_theme() + facet_wrap(~ local_gene_symbol, nrow = 6, ncol = 2) + theme(legend.position="none") + #theme(
 #  strip.background = element_blank(),
 #  strip.text.x = element_blank()
 #) + 
@@ -742,8 +754,6 @@ ggsave("12local-facet_grid.eps", width = 6.5, height = 9, units = "in")
 
 
 ```{r}
-
-
 # separate plots for each local gene
 foo %>%
   ggplot() + geom_point(aes(x = lrt, y = lod_diff_proportion * (lod_diff_proportion > 0)), size = 1/10) + broman::karl_theme() + facet_wrap(~ local_gene_symbol, nrow = 6, ncol = 2) + theme(legend.position="none") + 
@@ -760,7 +770,29 @@ ggsave("12local-facet_grid-no-strip.eps", width = 6.5, height = 9, units = "in")
 # https://stackoverflow.com/questions/10547487/remove-facet-wrap-labels-completely
 ```
 
-Now, the nonlocal gene plots.
+
+
+```{r}
+# separate plots for each local gene
+foo %>%
+  ggplot() + geom_point(aes(x = lrt, y = lod_diff_proportion * (lod_diff_proportion > 0)), size = 1/10, colour = "powderblue") + broman::karl_theme() + facet_wrap(~ local_gene_symbol, nrow = 3, ncol = 4) + theme(legend.position="none") + 
+  theme(
+    strip.background = element_blank(),
+    strip.text.x = element_blank()
+) + 
+  ylab("LOD difference proportion") +
+  xlab("Pleiotropy vs. separate QTL test statistic") + 
+  ylim(0, 1) + xlim(0, NA) +
+  geom_text(data = foo, aes(x/2 + 5, y, label = local_gene_symbol), inherit.aes=FALSE)
+
+ggsave("12local-facet_grid-no-strip-3-by-4.svg", width = 9, height = 6, units = "in")
+# https://stackoverflow.com/questions/10547487/remove-facet-wrap-labels-completely
+```
+
+
+
+
+## Now, the nonlocal gene plots.
 
 
 ```{r}
@@ -786,14 +818,14 @@ foo %>%
   geom_point(size = 1 + foo$hnf4a_indic, aes( 
                            x = lrt, 
                            y = (lod_diff_proportion > 0) * lod_diff_proportion, 
-                           color = hnf4a_indic_factor)) + 
+                           color = !as.logical(hnf4a_indic_factor))) + 
   #geom_jitter() + 
   broman::karl_theme() + 
   theme(legend.position="none") + 
   ylab("LOD difference proportion") + 
   xlab("Pleiotropy vs. separate QTL test statistic") + 
   ylim(c(0, 1)) + 
-  xlim(0, 73) + 
+  xlim(0, 40) + 
   facet_wrap(~ ordering_factor, nrow = 2, ncol = 2) + 
   theme(
     strip.background = element_blank(),
@@ -804,19 +836,21 @@ foo %>%
 fn <- "nonlocal-4-panels-no-strip"
 ggsave(paste0(fn, ".svg"), height = 9, width = 6.5, units = "in")
 ggsave(paste0(fn, ".eps"), height = 9, width = 6.5, units = "in")
+ggsave(paste0(fn, "-wide.svg"), height = 6, width = 9, units = "in")
+
 foo %>% 
   ggplot() + 
   geom_point(size = 1 + foo$hnf4a_indic, aes( 
                            x = lrt, 
                            y = (lod_diff_proportion > 0) * lod_diff_proportion, 
-                           color = hnf4a_indic_factor)) + 
+                           color = !as.logical(hnf4a_indic_factor))) + 
   #geom_jitter() + 
   broman::karl_theme() + 
   theme(legend.position="none") + 
   ylab("LOD difference proportion") + 
   xlab("Pleiotropy vs. separate QTL test statistic") + 
   ylim(c(0, 1)) + 
-  xlim(0, 73) + 
+  xlim(0, 40) + 
   facet_wrap(~ ordering_factor, nrow = 2, ncol = 2) + 
 #  theme(
 #    strip.background = element_blank(),
@@ -831,6 +865,37 @@ ggsave(paste0(fn, ".eps"), height = 9, width = 6.5, units = "in")
 ```
 
 
+## Compare my LOD scores with those in `dataset.islet.rnaseq$lod.peaks`
+
+```{r}
+foobar <- dataset.islet.rnaseq$lod.peaks %>% 
+  left_join(dataset.islet.rnaseq$annots, by = c("annot.id" = "gene_id")) %>%
+  filter(chrom == 2, pos > 163.5, pos < 167.5, lod > 7.18, chr != 2)
+```
+
+```{r}
+hot_peaks2 %>%
+  filter(lodcolumn == "ENSMUSG00000003746")
+```
+
+
+```{r}
+foobar %>%
+  filter(annot.id == "ENSMUSG00000003746")
+```
+
+## Does qtl2::scan1 - without random effects - give the LOD scores in the Keller RData file?
+
+```{r}
+hh <- hot[, colnames(hot) == "ENSMUSG00000003746", drop = FALSE]
+scan1(genoprobs = genoprobs, pheno = hh, kinship = NULL, addcovar = addcovar, reml = FALSE, cores = 6
+        ) -> s1_hotspot_fixed_only
+
+```
+
+```{r}
+find_peaks(s1_hotspot_fixed_only, map = map)
+```
 
 
 
